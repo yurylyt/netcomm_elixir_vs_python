@@ -48,10 +48,6 @@ defmodule MiniSim.Model.Simulation do
     }
   end
 
-  def add_agent(simulation, agent, copies \\ 1) do
-    %{simulation | agents: simulation.agents ++ List.duplicate(agent, copies)}
-  end
-
   def simulate_dialogue({alice_idx, bob_idx}, agents_map) do
     {alice_update_prefs, bob_update_prefs} =
       Dialog.talk(Map.get(agents_map, alice_idx), Map.get(agents_map, bob_idx))
@@ -92,15 +88,9 @@ defmodule MiniSim.Model.Simulation do
 
   # Always use exhaustive all-pairs matching
   def generate_pairs(simulation) do
-    generate_all_pairs(simulation.agents)
-  end
-
-  def generate_all_pairs(agents) do
-    n = length(agents)
+    n = length(simulation.agents)
     for i <- 0..(n - 2), j <- (i + 1)..(n - 1), do: {i, j}
   end
-
-  # Random matching removed in minimal variant
 
   def update_agents(updates, agents) do
     preference_updates =

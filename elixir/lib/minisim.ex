@@ -3,12 +3,12 @@ defmodule MiniSim do
   Minimal simulation runner with fixed network generation:
   - resistance (rho) ~ U(0,1)
   - persuasion (pi) ~ U(0,1)
-  - decisiveness: fixed across all agents
   - number of agents: parameter
   - RNG seed: parameter
   """
 
   alias MiniSim.Model.{Agent, Simulation}
+  
 
   @doc """
   Run the simulation and return final stats.
@@ -17,19 +17,19 @@ defmodule MiniSim do
   - num_agents: number of agents
   - iterations: number of iterations (ticks)
   - seed: RNG seed for reproducibility (integer)
-  - decisiveness: fixed decisiveness for all agents (float)
+  Decisiveness logic is removed; agents always vote based on preferences.
   """
-  def run(num_agents, iterations, seed, decisiveness)
+  def run(num_agents, iterations, seed)
       when is_integer(num_agents) and num_agents > 0 and
              is_integer(iterations) and iterations >= 0 and
-             is_integer(seed) and is_number(decisiveness) do
+             is_integer(seed) do
     # Global RNG seed for voting and any uniform draws
     :rand.seed(:exsplus, seed)
 
     sim =
       iterations
       |> Simulation.new_simulation(seed)
-      |> seed_agents(num_agents, decisiveness)
+      |> seed_agents(num_agents)
 
     # initial stats
     initial_stats = Simulation.get_statistics(sim.agents)
@@ -43,16 +43,16 @@ defmodule MiniSim do
     List.first(sim.iteration_stats)
   end
 
-  defp seed_agents(sim, n, decisiveness) do
-    agents = Enum.map(1..n, fn _ -> random_agent(decisiveness) end)
+  defp seed_agents(sim, n) do
+    agents = Enum.map(1..n, fn _ -> random_agent() end)
     %{sim | agents: agents}
   end
 
-  defp random_agent(decisiveness) do
+  defp random_agent do
     rho = :rand.uniform()
     pi = :rand.uniform()
     option1_pref = :rand.uniform() # between 0 and 1
-    Agent.new_agent(rho, pi, option1_pref, decisiveness)
+    Agent.new_agent(rho, pi, option1_pref)
   end
 
   defp step(%Simulation{} = sim) do

@@ -14,19 +14,19 @@ Prereqs: Elixir ≥ 1.18 and Erlang/OTP matching your Elixir, internet access fo
   - `cd elixir`
   - `mix deps.get && MIX_ENV=prod mix compile`
 - Run a simulation (example):
-  - `MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(2_000, 10, 12345, 0.0))"`
-  - Signature: `MiniSim.run(num_agents, iterations, seed, decisiveness)`
+  - `MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(2_000, 10, 12345))"`
+  - Signature: `MiniSim.run(num_agents, iterations, seed)`
 - Benchmark (simple):
-  - `/usr/bin/time -l MIX_ENV=prod mix run -e "MiniSim.run(20_000, 10, 42, 0.1)"`
+  - `/usr/bin/time -l MIX_ENV=prod mix run -e "MiniSim.run(20_000, 10, 42)"`
   - Prefer consistent CPU/power settings; run multiple trials and average.
 
 ## Python: Status
 The Python implementation will mirror the Elixir API:
-- CLI/entry: `python/main.py --agents 20000 --iters 10 --seed 42 --decisiveness 0.1`
+- CLI/entry: `python/main.py --agents 20000 --iters 10 --seed 42`
 - Environment: Python 3.10+, `requirements.txt` (to be added).
 
 ## Fair Benchmarking Tips
-- Use identical parameters across languages (agents, iterations, seed, decisiveness).
+- Use identical parameters across languages (agents, iterations, seed).
 - Use production builds/settings (e.g., `MIX_ENV=prod`).
 - Warm up runtimes before measuring; collect ≥ 5 trials.
 - Record: wall time, CPU time, memory, and system info (CPU model, cores).
@@ -36,5 +36,4 @@ The Python implementation will mirror the Elixir API:
 - Document command lines and environment in your results.
 
 ## Results
-Keep a simple CSV or Markdown note with columns: language, agents, iters, seed, decisiveness, wall_ms, cpu_ms, max_rss.
-
+Keep a simple CSV or Markdown note with columns: language, agents, iters, seed, wall_ms, cpu_ms, max_rss.

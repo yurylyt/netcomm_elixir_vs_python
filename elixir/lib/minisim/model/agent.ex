@@ -4,50 +4,47 @@ defmodule MiniSim.Model.Agent do
   - rho: resistance to change (0..1)
   - pi: persuasiveness (0..1)
   - preferences: probability distribution over 3 alternatives
-  - decisiveness: sensitivity to uncertainty
   """
-
-  import MiniSim.Math
 
   defstruct [
     :rho,
     :pi,
-    :preferences,
-    :decisiveness
+    :preferences
   ]
 
   @type t :: %__MODULE__{
           rho: float(),
           pi: float(),
-          preferences: [float()],
-          decisiveness: float()
+          preferences: [float()]
         }
 
   @doc """
   Creates a new agent. `option1_pref` is the probability of alternative 1; alt2=1-option1_pref; alt3=0.
   """
-  def new_agent(rho, pi, option1_pref, decisiveness \\ 0.0) do
+  def new_agent(rho, pi, option1_pref) do
     %__MODULE__{
       rho: rho,
       pi: pi,
-      preferences: [option1_pref, 1 - option1_pref, 0.0],
-      decisiveness: decisiveness
+      preferences: [option1_pref, 1 - option1_pref, 0.0]
     }
   end
 
   @doc """
-  Returns either an alternative index (0,1,2) or :disclaim if declining to choose.
+  Returns an alternative index (0, 1, or 2) sampled from current preferences.
   """
-  @spec vote(t) :: integer | :disclaim
+  @spec vote(t) :: 0 | 1 | 2
   def vote(agent) do
-    entropy = normalized_entropy(agent.preferences)
-    pow = :math.exp(agent.decisiveness)
-    trial = bernoulli_trial(:math.pow(entropy, pow))
+    random = :rand.uniform()
 
-    case trial do
-      true -> :disclaim
-      false -> random_choice(agent.preferences)
-    end
+    agent.preferences
+    |> Enum.with_index()
+    |> Enum.reduce_while(0, fn {prob, index}, acc ->
+      if random <= acc + prob do
+        {:halt, index}
+      else
+        {:cont, acc + prob}
+      end
+    end)
+
   end
 end
-
