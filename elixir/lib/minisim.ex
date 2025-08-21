@@ -10,7 +10,7 @@ defmodule MiniSim do
 
   alias MiniSim.Model.{Agent, Simulation}
   alias MiniSim.Rng
-  
+
 
   @doc """
   Run the simulation and return final stats.
@@ -105,7 +105,7 @@ defmodule MiniSim do
     end)
   end
 
-  defp pick_index([p0, p1, p2], u) do
+  defp pick_index([p0, p1, _p2], u) do
     cond do
       u <= p0 -> 0
       u <= p0 + p1 -> 1

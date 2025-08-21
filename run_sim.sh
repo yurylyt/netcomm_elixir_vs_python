@@ -50,6 +50,18 @@ while [ $# -gt 0 ]; do
 done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Return epoch milliseconds (prefers python3, falls back to seconds)
+epoch_ms() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - <<'PY'
+import time
+print(int(time.time() * 1000))
+PY
+  else
+    echo $(( $(date +%s) * 1000 ))
+  fi
+}
+
 # Validate numeric parameters
 if [ -z "$LANGUAGE" ] || [ -z "$AGENTS" ] || [ -z "$ITERS" ]; then
   echo "Error: language (positional), --agents, and --iterations are required." >&2
@@ -60,6 +72,9 @@ if ! [[ "$AGENTS" =~ ^[1-9][0-9]*$ ]] || ! [[ "$ITERS" =~ ^[0-9]+$ ]] || ! [[ "$
   echo "Error: agents, iterations, seed, and chunk_size must be positive integers." >&2
   exit 1
 fi
+
+start_ms=$(epoch_ms)
+cmd_status=0
 
 case "$LANGUAGE" in
   elixir)
@@ -77,8 +92,9 @@ case "$LANGUAGE" in
 
     (
       cd "$ELIXIR_DIR"
-      MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))"
+      MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" > /dev/null
     )
+    cmd_status=$?
     ;;
 
   python)
@@ -97,7 +113,8 @@ case "$LANGUAGE" in
       --agents "$AGENTS" \
       --iterations "$ITERS" \
       --seed "$SEED" \
-      --chunk-size "$CHUNK_SIZE"
+      --chunk-size "$CHUNK_SIZE" > /dev/null
+    cmd_status=$?
     ;;
 
   *)
@@ -105,3 +122,10 @@ case "$LANGUAGE" in
     exit 1
     ;;
 esac
+
+end_ms=$(epoch_ms)
+elapsed_ms=$(( end_ms - start_ms ))
+
+echo "${LANGUAGE} wall_ms=${elapsed_ms}"
+
+exit ${cmd_status}
