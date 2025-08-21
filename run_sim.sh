@@ -126,6 +126,6 @@ esac
 end_ms=$(epoch_ms)
 elapsed_ms=$(( end_ms - start_ms ))
 
-echo "${LANGUAGE} wall_ms=${elapsed_ms}"
+echo "${elapsed_ms}"
 
 exit ${cmd_status}
