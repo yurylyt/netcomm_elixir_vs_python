@@ -29,9 +29,10 @@ Prereqs: Elixir ≥ 1.18 and Erlang/OTP matching your Elixir, internet access fo
   - `chunk-size` controls async batch size required by `MiniSim.run/4`.
 
 ## Python: Status
-The Python implementation will mirror the Elixir API:
-- CLI/entry: `python/main.py --agents 20000 --iters 10 --seed 42`
-- Environment: Python 3.10+, `requirements.txt` (to be added).
+Python implementation is available (single-process, no concurrency):
+- CLI: `python python/main.py --agents 20000 --iters 10 --seed 42 --chunk-size 256`
+- API: `from minisim import run; run(agents, iterations, seed, chunk_size)`
+- Environment: Python 3.10+, see `python/requirements.txt`.
 
 ## Fair Benchmarking Tips
 - Use identical parameters across languages (agents, iterations, seed).

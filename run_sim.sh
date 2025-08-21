@@ -82,8 +82,22 @@ case "$LANGUAGE" in
     ;;
 
   python)
-    echo "Error: Python implementation not available yet." >&2
-    exit 2
+    if ! command -v python3 >/dev/null 2>&1; then
+      echo "Error: python3 not found in PATH." >&2
+      exit 1
+    fi
+
+    PY_MAIN="$SCRIPT_DIR/python/main.py"
+    if [ ! -f "$PY_MAIN" ]; then
+      echo "Error: Python CLI not found at $PY_MAIN" >&2
+      exit 1
+    fi
+
+    python3 "$PY_MAIN" \
+      --agents "$AGENTS" \
+      --iterations "$ITERS" \
+      --seed "$SEED" \
+      --chunk-size "$CHUNK_SIZE"
     ;;
 
   *)
