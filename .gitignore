@@ -12,25 +12,20 @@
 *.log
 
 # Elixir (Mix project under elixir/)
-/elixir/_build/
-/elixir/deps/
-/elixir/cover/
-/elixir/doc/
-/elixir/.fetch
-/elixir/.elixir_ls/
-/elixir/_checkouts/
-/elixir/*.ez
-/elixir/erl_crash.dump
+_build/
+deps/
+cover/
+doc/
+.fetch
+.elixir_ls/
+_elixir/
 
 # Python (planned)
-/python/__pycache__/
-/python/.pytest_cache/
-/python/.mypy_cache/
-/python/.ruff_cache/
-/python/.venv/
-/python/venv/
-/python/build/
-/python/dist/
-/python/*.egg-info
+__pycache__/
+.venv/
+venv/
+build/
+dist/
+*.egg-info
 
 AGENTS.md
