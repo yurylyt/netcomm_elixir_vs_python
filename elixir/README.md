@@ -14,8 +14,9 @@ Fixed network configuration (always all pairs):
 - Run a simulation (always all pairs):
 
 ```
-# MiniSim.run(num_agents, iterations, seed)
-result = MiniSim.run(2_000, 10, 12345)
+# MiniSim.run(num_agents, iterations, seed, chunk_size)
+# 4th arg controls async chunk size for pair processing (required)
+result = MiniSim.run(2_000, 10, 12345, 256)
 
 # Fields on result:
 # result.total_agents

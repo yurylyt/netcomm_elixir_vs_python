@@ -27,7 +27,8 @@ defmodule MiniSim.Model.Simulation do
     :num_iterations,
     :iteration_stats,
     :seed,
-    :tick
+    :tick,
+    :chunk_size
   ]
 
   @type t :: %__MODULE__{
@@ -35,7 +36,8 @@ defmodule MiniSim.Model.Simulation do
           num_iterations: integer(),
           iteration_stats: [Statistics.t()],
           seed: non_neg_integer(),
-          tick: non_neg_integer()
+          tick: non_neg_integer(),
+          chunk_size: nil | pos_integer()
         }
 
   def new_simulation(num_iterations, seed) do
@@ -44,7 +46,8 @@ defmodule MiniSim.Model.Simulation do
       num_iterations: num_iterations,
       iteration_stats: [],
       seed: seed,
-      tick: 0
+      tick: 0,
+      chunk_size: nil
     }
   end
 

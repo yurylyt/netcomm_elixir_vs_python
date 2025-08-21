@@ -14,11 +14,19 @@ Prereqs: Elixir ≥ 1.18 and Erlang/OTP matching your Elixir, internet access fo
   - `cd elixir`
   - `mix deps.get && MIX_ENV=prod mix compile`
 - Run a simulation (example):
-  - `MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(2_000, 10, 12345))"`
-  - Signature: `MiniSim.run(num_agents, iterations, seed)`
+  - `MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(2_000, 10, 12345, 256))"`
+  - Signature: `MiniSim.run(num_agents, iterations, seed, chunk_size)`
+  - `chunk_size` tunes async batch size for pair processing (required).
 - Benchmark (simple):
-  - `/usr/bin/time -l MIX_ENV=prod mix run -e "MiniSim.run(20_000, 10, 42)"`
+  - `/usr/bin/time -l MIX_ENV=prod mix run -e "MiniSim.run(20_000, 10, 42, 256)"`
   - Prefer consistent CPU/power settings; run multiple trials and average.
+
+## Runner Script
+- Script: `./run_sim.sh <language> --agents N --iterations N [--seed N] [--chunk-size N]`
+- Example (Elixir): `./run_sim.sh elixir --agents 20000 --iterations 10 --seed 42 --chunk-size 256`
+- Notes:
+  - `language`: `elixir` or `python` (Python not implemented; exits with error).
+  - `chunk-size` controls async batch size required by `MiniSim.run/4`.
 
 ## Python: Status
 The Python implementation will mirror the Elixir API:
