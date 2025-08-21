@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, TypedDict
 
@@ -19,15 +18,27 @@ class Agent:
     preferences: List[float]
 
 
-def _random_choice(probs: List[float]) -> int:
-    r = random.random()
-    acc = 0.0
-    for i, p in enumerate(probs):
-        acc += p
-        if r <= acc:
-            return i
-    # Fallback to last index if rounding leaves a small tail
-    return len(probs) - 1
+class Rng:
+    """64-bit LCG matching Elixir implementation.
+    state_{n+1} = (a * state_n + c) mod 2^64
+    uniform = state / 2^64
+    """
+
+    MOD = 1 << 64
+    A = 636_413_622_384_679_300_5
+    C = 1_442_695_040_888_963_407
+
+    def __init__(self, seed: int) -> None:
+        s = seed % self.MOD
+        self.state = s if s >= 0 else s + self.MOD
+
+    def next(self) -> int:
+        self.state = (self.A * self.state + self.C) % self.MOD
+        return self.state
+
+    def uniform(self) -> float:
+        s = self.next()
+        return s / self.MOD
 
 
 def _locate(from_pair: Tuple[int, int], to_pair: Tuple[int, int]) -> Tuple[int, int]:
@@ -100,8 +111,8 @@ def _talk(alice: Agent, bob: Agent) -> Tuple[List[float], List[float]]:
     result = [[r[i * 3 + j] for j in range(3)] for i in range(3)]  # 3x3
 
     # Alice gets row sums; Bob gets column sums
-    alice_vec = [round(sum(result[i]), 4) for i in range(3)]
-    bob_vec = [round(sum(result[i][j] for i in range(3)), 4) for j in range(3)]
+    alice_vec = [round(sum(result[i]), 3) for i in range(3)]
+    bob_vec = [round(sum(result[i][j] for i in range(3)), 3) for j in range(3)]
 
     a_sum = sum(alice_vec)
     b_sum = sum(bob_vec)
@@ -131,16 +142,12 @@ def _average_prefs(prefs_list: List[List[float]]) -> List[float]:
 
 
 def _get_statistics(agents: List[Agent]) -> Stats:
-    choices = [_random_choice(a.preferences) for a in agents]
-    vote_results: Dict[int, int] = {}
-    for c in choices:
-        vote_results[c] = vote_results.get(c, 0) + 1
-
-    agent_preferences = [a.preferences[:] for a in agents]
+    agent_preferences = [[round(p[0], 3), round(p[1], 3), round(p[2], 3)] for p in (a.preferences[:] for a in agents)]
     avg = _average_prefs(agent_preferences)
+    avg = [round(x, 3) for x in avg]
     return {
         "total_agents": len(agents),
-        "vote_results": vote_results,
+        "vote_results": {},
         "average_preferences": avg,
         "agent_preferences": agent_preferences,
     }
@@ -155,18 +162,30 @@ def run(agents: int, iterations: int, seed: int, chunk_size: int) -> Stats:
     assert isinstance(seed, int)
     assert isinstance(chunk_size, int) and chunk_size > 0
 
-    random.seed(seed)
+    rng = Rng(seed)
 
     # Seed agents
     pop: List[Agent] = []
     for _ in range(agents):
-        rho = random.random()
-        pi = random.random()
-        option1_pref = random.random()
+        rho = rng.uniform()
+        pi = rng.uniform()
+        option1_pref = rng.uniform()
         pop.append(Agent(rho=rho, pi=pi, preferences=[option1_pref, 1 - option1_pref, 0.0]))
 
     # Initial stats (to mirror Elixir's behavior though it returns final)
     stats = _get_statistics(pop)
+    # compute votes with portable RNG
+    vote_results: Dict[int, int] = {}
+    for a in pop:
+        u = rng.uniform()
+        if u <= a.preferences[0]:
+            idx = 0
+        elif u <= a.preferences[0] + a.preferences[1]:
+            idx = 1
+        else:
+            idx = 2
+        vote_results[idx] = vote_results.get(idx, 0) + 1
+    stats["vote_results"] = vote_results
 
     for _ in range(iterations):
         pairs = _generate_all_pairs(len(pop))
@@ -190,6 +209,17 @@ def run(agents: int, iterations: int, seed: int, chunk_size: int) -> Stats:
         pop = new_pop
 
         stats = _get_statistics(pop)
+        # update votes with portable RNG
+        vote_results = {}
+        for a in pop:
+            u = rng.uniform()
+            if u <= a.preferences[0]:
+                idx = 0
+            elif u <= a.preferences[0] + a.preferences[1]:
+                idx = 1
+            else:
+                idx = 2
+            vote_results[idx] = vote_results.get(idx, 0) + 1
+        stats["vote_results"] = vote_results
 
     return stats
-

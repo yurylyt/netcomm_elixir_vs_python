@@ -59,31 +59,20 @@ defmodule MiniSim.Model.Simulation do
   end
 
   def get_statistics(agents) do
-    max_c = max(System.schedulers_online(), 2)
-
-    choices =
-      agents
-      |> Task.async_stream(fn a -> Agent.vote(a) end,
-        max_concurrency: max_c,
-        timeout: :infinity,
-        ordered: false
-      )
-      |> Enum.map(fn {:ok, choice} -> choice end)
-
+    # Deterministic preferences snapshot; vote computation handled externally for cross-language parity
     agent_preferences =
       agents
-      |> Task.async_stream(fn a -> a.preferences end,
-        max_concurrency: max_c,
-        timeout: :infinity,
-        ordered: false
-      )
-      |> Enum.map(fn {:ok, prefs} -> prefs end)
+      |> Enum.map(fn a -> a.preferences end)
+      |> Enum.map(fn [a,b,c] -> [Float.round(a, 3), Float.round(b, 3), Float.round(c, 3)] end)
 
-    average_preferences = average_preferences(agent_preferences)
+    average_preferences =
+      agent_preferences
+      |> average_preferences()
+      |> Enum.map(&Float.round(&1, 3))
 
     %Statistics{
       total_agents: length(agents),
-      vote_results: Enum.frequencies(choices),
+      vote_results: %{},
       average_preferences: average_preferences,
       agent_preferences: agent_preferences
     }
