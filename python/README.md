@@ -1,18 +1,18 @@
-# MiniSim (Python) — Scaffold
+# MiniSim (Python)
 
-This is a scaffold for the Python port of the MiniSim benchmark used for Elixir vs Python performance comparisons.
+Python port of the MiniSim benchmark with deterministic RNG and optional multiprocessing.
 
 Status
-- CLI and package skeleton exist.
-- Core `run(agents, iterations, seed, chunk_size)` API is defined but not implemented.
-- Invoking the CLI exits with code 2 and prints a Not Implemented message.
+- Core API implemented with identical behavior to Elixir variant for seeding, updates, and voting.
+- Multiprocessing support via per-chunk parallelism (no RNG in workers for reproducibility).
 
-Usage (scaffold)
-- `python python/main.py --agents 20000 --iterations 10 --seed 42 --chunk-size 256`
-- Exit status: 2 (not implemented)
+CLI Usage
+- `python python/main.py --agents 20000 --iterations 10 --seed 42 --chunk-size 256 --procs 4`
 
-Next Steps
-- Implement identical logic to Elixir’s `MiniSim.run/4`.
-- Add tests (e.g., `pytest`) and ensure RNG parity via `random.seed(seed)` and `numpy.random.Generator` if needed.
-- Add a lightweight results writer or integrate with the project’s runner script.
+API
+- `from minisim import run`
+- `run(agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1) -> dict`
 
+Notes
+- `chunk_size` controls how many pair interactions each worker processes per task.
+- `procs=1` runs sequentially; increase to use multiple processes. RNG is confined to the parent process to keep results deterministic across different `procs` settings.

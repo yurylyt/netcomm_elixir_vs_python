@@ -22,16 +22,18 @@ Prereqs: Elixir ≥ 1.18 and Erlang/OTP matching your Elixir, internet access fo
   - Prefer consistent CPU/power settings; run multiple trials and average.
 
 ## Runner Script
-- Script: `./run_sim.sh <language> --agents N --iterations N [--seed N] [--chunk-size N]`
+- Script: `./run_sim.sh <language> --agents N --iterations N [--seed N] [--chunk-size N] [--procs N]`
 - Example (Elixir): `./run_sim.sh elixir --agents 20000 --iterations 10 --seed 42 --chunk-size 256`
+- Example (Python, 4 procs): `./run_sim.sh python --agents 20000 --iterations 10 --seed 42 --chunk-size 256 --procs 4`
 - Notes:
-  - `language`: `elixir` or `python` (Python not implemented; exits with error).
-  - `chunk-size` controls async batch size required by `MiniSim.run/4`.
+  - `language`: `elixir` or `python`.
+  - `chunk-size` controls async batch size (Elixir) or per-task pairs (Python).
+  - `procs` applies to Python only (number of worker processes).
 
 ## Python: Status
-Python implementation is available (single-process, no concurrency):
-- CLI: `python python/main.py --agents 20000 --iters 10 --seed 42 --chunk-size 256`
-- API: `from minisim import run; run(agents, iterations, seed, chunk_size)`
+Python implementation supports optional multiprocessing:
+- CLI: `python python/main.py --agents 20000 --iterations 10 --seed 42 --chunk-size 256 --procs 4`
+- API: `from minisim import run; run(agents, iterations, seed, chunk_size, procs=1)`
 - Environment: Python 3.10+, see `python/requirements.txt`.
 
 ## Fair Benchmarking Tips

@@ -13,13 +13,20 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--iterations", "--iters", "-i", type=int, required=True, help="iterations (>=0)")
     p.add_argument("--seed", "-s", type=int, default=42, help="RNG seed (int)")
     p.add_argument("--chunk-size", "-c", type=int, default=256, help="batch size for pair processing (>0)")
+    p.add_argument("--procs", "-p", type=int, default=1, help="number of worker processes (>=1)")
     return p.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
 
-    stats = run(args.agents, args.iterations, args.seed, args.chunk_size)
+    # Avoid thread oversubscription from BLAS libraries in workers
+    import os
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+
+    stats = run(args.agents, args.iterations, args.seed, args.chunk_size, args.procs)
     sys.stdout.write(json.dumps(stats) + "\n")
     return 0
 

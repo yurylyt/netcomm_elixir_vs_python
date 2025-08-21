@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, TypedDict
+import multiprocessing as mp
 
 
 class Stats(TypedDict):
@@ -153,7 +154,20 @@ def _get_statistics(agents: List[Agent]) -> Stats:
     }
 
 
-def run(agents: int, iterations: int, seed: int, chunk_size: int) -> Stats:
+def _talk_batch(batch: List[Tuple[int, int, Agent, Agent]]) -> List[Tuple[int, List[float]]]:
+    """Worker: process a batch of (i,j,ai,aj) and return flattened updates.
+
+    Returns a list like [(i, ai_prefs), (j, aj_prefs), ...].
+    """
+    out: List[Tuple[int, List[float]]] = []
+    for i, j, ai, aj in batch:
+        ai_p, aj_p = _talk(ai, aj)
+        out.append((i, ai_p))
+        out.append((j, aj_p))
+    return out
+
+
+def run(agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1) -> Stats:
     """
     Python variant of MiniSim.run/4 (no concurrency). Always all-pairs matching per tick.
     """
@@ -161,6 +175,7 @@ def run(agents: int, iterations: int, seed: int, chunk_size: int) -> Stats:
     assert isinstance(iterations, int) and iterations >= 0
     assert isinstance(seed, int)
     assert isinstance(chunk_size, int) and chunk_size > 0
+    assert isinstance(procs, int) and procs >= 1
 
     rng = Rng(seed)
 
@@ -189,14 +204,31 @@ def run(agents: int, iterations: int, seed: int, chunk_size: int) -> Stats:
 
     for _ in range(iterations):
         pairs = _generate_all_pairs(len(pop))
-        # Chunk iteration to keep memory bounded even without concurrency
         updates: Dict[int, List[List[float]]] = {}
-        for idx in range(0, len(pairs), chunk_size):
-            for (i, j) in pairs[idx: idx + chunk_size]:
-                ai, aj = pop[i], pop[j]
-                ai_p, aj_p = _talk(ai, aj)
-                updates.setdefault(i, []).append(ai_p)
-                updates.setdefault(j, []).append(aj_p)
+
+        if procs <= 1:
+            # Sequential path
+            for idx in range(0, len(pairs), chunk_size):
+                for (i, j) in pairs[idx : idx + chunk_size]:
+                    ai, aj = pop[i], pop[j]
+                    ai_p, aj_p = _talk(ai, aj)
+                    updates.setdefault(i, []).append(ai_p)
+                    updates.setdefault(j, []).append(aj_p)
+        else:
+            # Parallel path: build batches of pairs with their current agent snapshots
+            tasks: List[List[Tuple[int, int, Agent, Agent]]] = []
+            for idx in range(0, len(pairs), chunk_size):
+                batch: List[Tuple[int, int, Agent, Agent]] = []
+                for (i, j) in pairs[idx : idx + chunk_size]:
+                    batch.append((i, j, pop[i], pop[j]))
+                if batch:
+                    tasks.append(batch)
+
+            # Use a process pool; avoid huge chunks in imap by keeping chunksize=1
+            with mp.get_context("spawn").Pool(processes=procs) as pool:
+                for batch_out in pool.imap_unordered(_talk_batch, tasks, chunksize=1):
+                    for idx, prefs in batch_out:
+                        updates.setdefault(idx, []).append(prefs)
 
         # Apply averaged updates
         new_pop: List[Agent] = []

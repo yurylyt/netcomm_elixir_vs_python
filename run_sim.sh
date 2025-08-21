@@ -8,11 +8,12 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<USAGE
-Usage: $0 <language: elixir|python> --agents N --iterations N [--seed N] [--chunk-size N]
+Usage: $0 <language: elixir|python> --agents N --iterations N [--seed N] [--chunk-size N] [--procs N]
   -a, --agents        Community size (positive integer)
   -i, --iterations    Number of iterations/ticks (non-negative integer)
   -s, --seed          RNG seed (default: 42)
   -c, --chunk-size    Batch size for Elixir async processing (default: 256)
+  -p, --procs         Python: number of worker processes (default: 1)
   -h, --help          Show this help
 USAGE
   exit 1
@@ -23,6 +24,7 @@ AGENTS=""
 ITERS=""
 SEED=42
 CHUNK_SIZE=256
+PROCS=1
 
 # Allow language as the first positional argument if provided
 if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
@@ -40,6 +42,8 @@ while [ $# -gt 0 ]; do
       SEED="${2:-}"; shift 2 ;;
     -c|--chunk-size)
       CHUNK_SIZE="${2:-}"; shift 2 ;;
+    -p|--procs)
+      PROCS="${2:-}"; shift 2 ;;
     -h|--help)
       usage ;;
     --)
@@ -68,8 +72,8 @@ if [ -z "$LANGUAGE" ] || [ -z "$AGENTS" ] || [ -z "$ITERS" ]; then
   usage
 fi
 
-if ! [[ "$AGENTS" =~ ^[1-9][0-9]*$ ]] || ! [[ "$ITERS" =~ ^[0-9]+$ ]] || ! [[ "$SEED" =~ ^[0-9]+$ ]] || ! [[ "$CHUNK_SIZE" =~ ^[1-9][0-9]*$ ]]; then
-  echo "Error: agents, iterations, seed, and chunk_size must be positive integers." >&2
+if ! [[ "$AGENTS" =~ ^[1-9][0-9]*$ ]] || ! [[ "$ITERS" =~ ^[0-9]+$ ]] || ! [[ "$SEED" =~ ^[0-9]+$ ]] || ! [[ "$CHUNK_SIZE" =~ ^[1-9][0-9]*$ ]] || ! [[ "$PROCS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Error: agents, iterations, seed, chunk_size, and procs must be positive integers." >&2
   exit 1
 fi
 
@@ -113,7 +117,8 @@ case "$LANGUAGE" in
       --agents "$AGENTS" \
       --iterations "$ITERS" \
       --seed "$SEED" \
-      --chunk-size "$CHUNK_SIZE" > /dev/null
+      --chunk-size "$CHUNK_SIZE" \
+      --procs "$PROCS" > /dev/null
     cmd_status=$?
     ;;
 
