@@ -49,6 +49,24 @@ defmodule MiniSim do
     List.first(sim.iteration_stats)
   end
 
+  @doc """
+  Sweep community sizes from 2..max_agents and print wall time (ms) per run.
+
+  Only outputs a single integer per line (milliseconds) for each run size.
+  """
+  def sweep(max_agents, iterations, seed, chunk_size)
+      when is_integer(max_agents) and max_agents >= 2 and
+             is_integer(iterations) and iterations >= 0 and
+             is_integer(seed) and is_integer(chunk_size) and chunk_size > 0 do
+    Enum.each(2..max_agents, fn n ->
+      t0 = System.monotonic_time(:millisecond)
+      _ = run(n, iterations, seed, chunk_size)
+      t1 = System.monotonic_time(:millisecond)
+      IO.puts(Integer.to_string(t1 - t0))
+    end)
+    :ok
+  end
+
   defp seed_agents(sim, n, rng) do
     {agents, rng} = Enum.reduce(1..n, {[], rng}, fn _, {acc, r} ->
       {agent, r2} = random_agent(r)

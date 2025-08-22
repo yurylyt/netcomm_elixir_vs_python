@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, TypedDict
 import multiprocessing as mp
+import time
 
 
 class Stats(TypedDict):
@@ -255,3 +256,14 @@ def run(agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1
         stats["vote_results"] = vote_results
 
     return stats
+
+
+def sweep(max_agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1) -> None:
+    """Run from 2..max_agents, printing wall ms per run (one per line)."""
+    assert isinstance(max_agents, int) and max_agents >= 2
+    for n in range(2, max_agents + 1):
+        t0 = time.perf_counter()
+        _ = run(n, iterations, seed, chunk_size, procs)
+        t1 = time.perf_counter()
+        ms = int((t1 - t0) * 1000)
+        print(ms)
