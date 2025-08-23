@@ -11,8 +11,8 @@ echo
 echo "Running Python sweeps multi process..."
 ./sweep_sim.sh python $MAX_AGENTS -i $ITERS -p $PROCS
 
-echo
-echo "Running Python sweeps single process..."
-./sweep_sim.sh python $MAX_AGENTS -i $ITERS -p 1
+# echo
+# echo "Running Python sweeps single process..."
+# ./sweep_sim.sh python $MAX_AGENTS -i $ITERS -p 1
 
 echo "Done"
