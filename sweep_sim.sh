@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Sweep simulation sizes from 2..MAX for a given language implementation.
-# Usage: ./sweep_sim.sh <language: elixir|python> <max_agents> --iterations N [--seed N] [--chunk-size N] [--procs N]
+# Sweep simulation sizes from MIN..MAX for a given language implementation.
+# Usage: ./sweep_sim.sh <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--procs N]
 
 usage() {
   cat >&2 <<USAGE
-Usage: $0 <language: elixir|python> <max_agents> --iterations N [--seed N] [--chunk-size N] [--procs N]
+Usage: $0 <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--procs N]
   -i, --iterations    Number of iterations/ticks (non-negative integer)
   -s, --seed          RNG seed (default: 42)
   -c, --chunk-size    Batch size (Elixir async / Python per-task pairs) (default: 256)
@@ -18,6 +18,7 @@ USAGE
 }
 
 LANGUAGE=""
+MIN_AGENTS=""
 MAX_AGENTS=""
 ITERS=""
 SEED=42
@@ -27,6 +28,9 @@ PROCS=1
 # Positional args
 if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
   LANGUAGE="$1"; shift
+fi
+if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
+  MIN_AGENTS="$1"; shift
 fi
 if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
   MAX_AGENTS="$1"; shift
@@ -46,13 +50,18 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-if [ -z "$LANGUAGE" ] || [ -z "$MAX_AGENTS" ] || [ -z "$ITERS" ]; then
-  echo "Error: language, max_agents (positional), and --iterations are required." >&2
+if [ -z "$LANGUAGE" ] || [ -z "$MIN_AGENTS" ] || [ -z "$MAX_AGENTS" ] || [ -z "$ITERS" ]; then
+  echo "Error: language, min_agents and max_agents (positional), and --iterations are required." >&2
   usage
 fi
 
-if ! [[ "$MAX_AGENTS" =~ ^[1-9][0-9]*$ ]] || ! [[ "$ITERS" =~ ^[0-9]+$ ]] || ! [[ "$SEED" =~ ^[0-9]+$ ]] || ! [[ "$CHUNK_SIZE" =~ ^[1-9][0-9]*$ ]] || ! [[ "$PROCS" =~ ^[1-9][0-9]*$ ]]; then
-  echo "Error: max_agents, iterations, seed, chunk_size, and procs must be positive integers." >&2
+if ! [[ "$MIN_AGENTS" =~ ^[1-9][0-9]*$ ]] || ! [[ "$MAX_AGENTS" =~ ^[1-9][0-9]*$ ]] || ! [[ "$ITERS" =~ ^[0-9]+$ ]] || ! [[ "$SEED" =~ ^[0-9]+$ ]] || ! [[ "$CHUNK_SIZE" =~ ^[1-9][0-9]*$ ]] || ! [[ "$PROCS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "Error: min_agents, max_agents, iterations, seed, chunk_size, and procs must be positive integers." >&2
+  exit 1
+fi
+
+if [ "$MIN_AGENTS" -lt 2 ] || [ "$MAX_AGENTS" -lt "$MIN_AGENTS" ]; then
+  echo "Error: require min_agents >= 2 and max_agents >= min_agents." >&2
   exit 1
 fi
 
@@ -69,7 +78,7 @@ case "$LANGUAGE" in
     fi
     (
       cd "$ELIXIR_DIR"
-      MIX_ENV=prod mix run -e "MiniSim.sweep(${MAX_AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE})"
+      MIX_ENV=prod mix run -e "MiniSim.sweep(${MIN_AGENTS}, ${MAX_AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE})"
     )
     ;;
   python)
@@ -87,6 +96,7 @@ case "$LANGUAGE" in
       --seed "$SEED" \
       --chunk-size "$CHUNK_SIZE" \
       --procs "$PROCS" \
+      --sweep-from "$MIN_AGENTS" \
       --sweep-to "$MAX_AGENTS"
     ;;
   *)
@@ -94,4 +104,3 @@ case "$LANGUAGE" in
     exit 1
     ;;
 esac
-

@@ -50,15 +50,16 @@ defmodule MiniSim do
   end
 
   @doc """
-  Sweep community sizes from 2..max_agents and print wall time (ms) per run.
+  Sweep community sizes from min_agents..max_agents and print wall time (ms) per run.
 
   Only outputs a single integer per line (milliseconds) for each run size.
   """
-  def sweep(max_agents, iterations, seed, chunk_size)
-      when is_integer(max_agents) and max_agents >= 2 and
+  def sweep(min_agents, max_agents, iterations, seed, chunk_size)
+      when is_integer(min_agents) and min_agents >= 2 and
+             is_integer(max_agents) and max_agents >= min_agents and
              is_integer(iterations) and iterations >= 0 and
              is_integer(seed) and is_integer(chunk_size) and chunk_size > 0 do
-    Enum.each(2..max_agents, fn n ->
+    Enum.each(min_agents..max_agents, fn n ->
       t0 = System.monotonic_time(:millisecond)
       _ = run(n, iterations, seed, chunk_size)
       t1 = System.monotonic_time(:millisecond)
