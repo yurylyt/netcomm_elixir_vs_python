@@ -100,7 +100,7 @@ defmodule MiniSim do
       |> Stream.chunk_every(sim.chunk_size)
       |> Task.async_stream(
         fn chunk -> Enum.map(chunk, &Simulation.simulate_dialogue(&1, agents_map)) end,
-        max_concurrency: System.schedulers_online() * 2,
+        max_concurrency: System.schedulers_online(),
         timeout: :infinity,
         ordered: false
       )
