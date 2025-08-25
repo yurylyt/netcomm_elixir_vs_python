@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-AGENTS=200
+AGENTS=300
 ITERS=100
 PROCS=8
 TRIALS=10
