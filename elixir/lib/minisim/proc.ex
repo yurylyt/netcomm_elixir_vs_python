@@ -26,13 +26,9 @@ defmodule MiniSim.Proc do
   def run(num_agents, iterations, seed, _chunk_size)
       when is_integer(num_agents) and num_agents > 0 and
              is_integer(iterations) and iterations >= 0 and is_integer(seed) do
-    {agents, _rng} = seed_agents(num_agents, Rng.new(seed))
-    if iterations == 0 do
-      # no iteration; return immediate stats using same flow as coordinator would
-      Coordinator.run(agents, 0, seed)
-    else
-      Coordinator.run(agents, iterations, seed)
-    end
+    {agents, rng} = seed_agents(num_agents, Rng.new(seed))
+    # Pass RNG state (post-seeding) to the coordinator for deterministic parity
+    Coordinator.run(agents, iterations, rng)
   end
 
   defp seed_agents(n, rng) do

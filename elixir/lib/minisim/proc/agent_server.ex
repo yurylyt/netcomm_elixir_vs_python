@@ -58,12 +58,13 @@ defmodule MiniSim.Proc.AgentServer do
     contribs =
       if state.index > 0 do
         Enum.reduce(0..(state.index - 1), %{}, fn j, acc ->
-          alice = state.agent
-          bob = get_snapshot_agent(snapshot_tab, j)
-          {ap, bp} = MiniSim.Model.Dialog.talk(alice, bob)
+          # Always call talk/2 with lower index as alice, higher as bob
+          lower = get_snapshot_agent(snapshot_tab, j)
+          higher = state.agent
+          {lower_prefs, higher_prefs} = MiniSim.Model.Dialog.talk(lower, higher)
           acc
-          |> add_contrib(state.index, ap)
-          |> add_contrib(j, bp)
+          |> add_contrib(j, lower_prefs)
+          |> add_contrib(state.index, higher_prefs)
         end)
       else
         %{}

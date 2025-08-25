@@ -19,8 +19,8 @@ defmodule MiniSim.Proc.Coordinator do
   @type run_result :: Simulation.Statistics.t()
 
   # Public API
-  def run(agents, iterations, seed) do
-    {:ok, pid} = start_link(agents: agents, iterations: iterations, seed: seed)
+  def run(agents, iterations, rng) do
+    {:ok, pid} = start_link(agents: agents, iterations: iterations, rng: rng)
     GenServer.call(pid, :run, :infinity)
   end
 
@@ -28,7 +28,7 @@ defmodule MiniSim.Proc.Coordinator do
   def init(opts) do
     agents = Keyword.fetch!(opts, :agents)
     iterations = Keyword.fetch!(opts, :iterations)
-    seed = Keyword.fetch!(opts, :seed)
+    rng = Keyword.fetch!(opts, :rng)
     n = length(agents)
 
     # Spawn agent processes
@@ -49,7 +49,7 @@ defmodule MiniSim.Proc.Coordinator do
       waiting_contribs: MapSet.new(),
       sums: %{},
       caller: nil,
-      rng: Rng.new(seed),
+      rng: rng,
       snapshot_tab: nil
     }
 
@@ -61,6 +61,14 @@ defmodule MiniSim.Proc.Coordinator do
     # kick off first iteration or finish immediately
     state = %{state | caller: from}
     if state.iterations_left > 0 and state.n > 1 do
+      # Advance RNG by initial vote draw (base engine records initial stats)
+      agents_now =
+        state.agents
+        |> Enum.sort_by(&elem(&1, 0))
+        |> Enum.map(fn {_i, pid} -> AgentServer.get_agent(pid) end)
+      {_ignored_votes, rng2} = vote_results(agents_now, state.rng)
+      state = %{state | rng: rng2}
+
       state = snapshot_and_broadcast(state)
       {:noreply, %{state | waiting_contribs: all_indices_set(state)}}
     else
@@ -87,15 +95,28 @@ defmodule MiniSim.Proc.Coordinator do
 
       if state.snapshot_tab, do: :ets.delete(state.snapshot_tab)
 
+      # After applying prefs, advance RNG by drawing votes for this iteration.
+      # If this was the last iteration, compute and return final stats (matching base).
       state = %{state | sums: %{}, waiting_contribs: MapSet.new(), iterations_left: state.iterations_left - 1, snapshot_tab: nil}
-      cond do
-        state.iterations_left > 0 ->
-          state2 = snapshot_and_broadcast(state)
-          {:noreply, %{state2 | waiting_contribs: all_indices_set(state2)}}
-        true ->
-          stats = final_statistics(state)
-          GenServer.reply(state.caller, stats)
-          {:noreply, state}
+
+      agents_now =
+        state.agents
+        |> Enum.sort_by(&elem(&1, 0))
+        |> Enum.map(fn {_i, pid} -> AgentServer.get_agent(pid) end)
+
+      {votes, rng2} = vote_results(agents_now, state.rng)
+      state = %{state | rng: rng2}
+
+      if state.iterations_left > 0 do
+        # More iterations remain: proceed without replying; we already advanced RNG.
+        state2 = snapshot_and_broadcast(state)
+        {:noreply, %{state2 | waiting_contribs: all_indices_set(state2)}}
+      else
+        # Final stats: compute prefs stats and attach the votes we just drew.
+        prefs_stats = Simulation.get_statistics(agents_now)
+        stats = %{prefs_stats | vote_results: votes}
+        GenServer.reply(state.caller, stats)
+        {:noreply, state}
       end
     else
       {:noreply, %{state | waiting_contribs: waiting, sums: sums}}
