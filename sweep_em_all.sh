@@ -3,17 +3,16 @@
 MIN_AGENTS=201
 MAX_AGENTS=300
 ITERS=100
-PROCS=4
+PROCS=8
 
 echo "Running Elixir sweeps..."
-./sweep_sim.sh elixir $MIN_AGENTS $MAX_AGENTS -i $ITERS
+./sweep_sim.sh elixir $MIN_AGENTS $MAX_AGENTS -i $ITERS -E base
+
+echo "Running Elixir Proc sweeps..."
+./sweep_sim.sh elixir $MIN_AGENTS $MAX_AGENTS -i $ITERS -E proc
 
 echo
 echo "Running Python sweeps multi process..."
 ./sweep_sim.sh python $MIN_AGENTS $MAX_AGENTS -i $ITERS -p $PROCS
-
-# echo
-# echo "Running Python sweeps single process..."
-# ./sweep_sim.sh python $MAX_AGENTS -i $ITERS -p 1
 
 echo "Done"
