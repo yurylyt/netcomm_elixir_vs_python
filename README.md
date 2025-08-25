@@ -14,9 +14,14 @@ Prereqs: Elixir ≥ 1.18 and Erlang/OTP matching your Elixir, internet access fo
   - `cd elixir`
   - `mix deps.get && MIX_ENV=prod mix compile`
 - Run a simulation (example):
-  - `MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(2_000, 10, 12345, 256))"`
-  - Signature: `MiniSim.run(num_agents, iterations, seed, chunk_size)`
-  - `chunk_size` tunes async batch size for pair processing (required).
+  - Base (async tasks):
+    - `MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(2_000, 10, 12345, 256))"`
+    - Signature: `MiniSim.run(num_agents, iterations, seed, chunk_size)`
+    - `chunk_size` tunes async batch size for pair processing (required).
+  - Process-based (GenServer):
+    - `MIX_ENV=prod mix run -e "IO.inspect(MiniSim.Proc.run(2_000, 10, 12345, 256))"`
+    - Signature: `MiniSim.Proc.run(num_agents, iterations, seed, chunk_size)`
+    - `chunk_size` is ignored (kept for API parity).
 - Benchmark (simple):
   - `/usr/bin/time -l MIX_ENV=prod mix run -e "MiniSim.run(20_000, 10, 42, 256)"`
   - Prefer consistent CPU/power settings; run multiple trials and average.

@@ -8,11 +8,12 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<USAGE
-Usage: $0 <language: elixir|python> --agents N --iterations N [--seed N] [--chunk-size N] [--procs N]
+Usage: $0 <language: elixir|python> --agents N --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N]
   -a, --agents        Community size (positive integer)
   -i, --iterations    Number of iterations/ticks (non-negative integer)
   -s, --seed          RNG seed (default: 42)
   -c, --chunk-size    Batch size for Elixir async processing (default: 256)
+  -E, --engine        Elixir: choose implementation engine: 'base' or 'proc' (default: base)
   -p, --procs         Python: number of worker processes (default: 1)
   -h, --help          Show this help
 USAGE
@@ -25,6 +26,7 @@ ITERS=""
 SEED=42
 CHUNK_SIZE=256
 PROCS=1
+ENGINE="base"
 
 # Allow language as the first positional argument if provided
 if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
@@ -42,6 +44,8 @@ while [ $# -gt 0 ]; do
       SEED="${2:-}"; shift 2 ;;
     -c|--chunk-size)
       CHUNK_SIZE="${2:-}"; shift 2 ;;
+    -E|--engine)
+      ENGINE="${2:-}"; shift 2 ;;
     -p|--procs)
       PROCS="${2:-}"; shift 2 ;;
     -h|--help)
@@ -96,7 +100,14 @@ case "$LANGUAGE" in
 
     (
       cd "$ELIXIR_DIR"
-      MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" > /dev/null
+      case "$ENGINE" in
+        base)
+          MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" > /dev/null ;;
+        proc)
+          MIX_ENV=prod mix run -e "IO.inspect(MiniSim.Proc.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" > /dev/null ;;
+        *)
+          echo "Error: Unknown engine '$ENGINE'. Use 'base' or 'proc'." >&2; exit 1 ;;
+      esac
     )
     cmd_status=$?
     ;;
