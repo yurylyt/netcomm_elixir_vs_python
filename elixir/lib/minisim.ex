@@ -85,21 +85,14 @@ defmodule MiniSim do
   end
 
   defp step(%Simulation{} = sim, rng) do
-    agents_map = Map.new(Enum.with_index(sim.agents, fn agent, idx -> {idx, agent} end))
-
-    pairs =
-      sim
-      |> Map.take([:agents, :seed, :tick])
-      |> then(fn %{agents: agents, seed: seed, tick: tick} ->
-        %Simulation{agents: agents, seed: seed, tick: tick}
-      end)
-      |> Simulation.generate_pairs()
+    # Snapshot agents into a tuple for O(1) index access during pair dialogue
+    agents_snapshot = List.to_tuple(sim.agents)
 
     updates =
-      pairs
+      Simulation.generate_pairs(sim)
       |> Stream.chunk_every(sim.chunk_size)
       |> Task.async_stream(
-        fn chunk -> Enum.map(chunk, &Simulation.simulate_dialogue(&1, agents_map)) end,
+        fn chunk -> Enum.map(chunk, &Simulation.simulate_dialogue(&1, agents_snapshot)) end,
         max_concurrency: System.schedulers_online(),
         timeout: :infinity,
         ordered: false

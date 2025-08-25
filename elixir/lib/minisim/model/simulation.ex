@@ -51,11 +51,12 @@ defmodule MiniSim.Model.Simulation do
     }
   end
 
-  def simulate_dialogue({alice_idx, bob_idx}, agents_map) do
-    {alice_update_prefs, bob_update_prefs} =
-      Dialog.talk(Map.get(agents_map, alice_idx), Map.get(agents_map, bob_idx))
-
-    {alice_idx, alice_update_prefs, bob_idx, bob_update_prefs}
+  # Fast path: agents as a tuple snapshot (O(1) index)
+  def simulate_dialogue({alice_idx, bob_idx}, agents_tuple) when is_tuple(agents_tuple) do
+    alice = elem(agents_tuple, alice_idx)
+    bob = elem(agents_tuple, bob_idx)
+    {alice_prefs, bob_prefs} = Dialog.talk(alice, bob)
+    {alice_idx, alice_prefs, bob_idx, bob_prefs}
   end
 
   def get_statistics(agents) do
