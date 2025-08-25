@@ -24,10 +24,7 @@ defmodule MiniSim.Proc.AgentServer do
       index: index,
       total_agents: total_agents,
       coordinator: coordinator,
-      agent: agent,
-      # iteration-scoped runtime data
-      shards: [],
-      shard_count: 0
+      agent: agent
     }
 
     {:ok, state}
@@ -36,8 +33,8 @@ defmodule MiniSim.Proc.AgentServer do
   # Public helpers
   def get_agent(pid), do: GenServer.call(pid, :get_agent)
   def get_prefs(pid), do: GenServer.call(pid, :get_prefs)
-  def iteration_start(pid, snapshot_tab, shards), do: GenServer.cast(pid, {:iteration_start, snapshot_tab, shards})
-  def set_prefs(pid, prefs), do: GenServer.cast(pid, {:set_prefs, prefs})
+  def iteration_start(pid, snapshot_tab), do: GenServer.cast(pid, {:iteration_start, snapshot_tab})
+  def set_prefs(pid, prefs), do: GenServer.call(pid, {:set_prefs, prefs}, :infinity)
 
   @impl true
   def handle_call(:get_agent, _from, state) do
@@ -50,71 +47,32 @@ defmodule MiniSim.Proc.AgentServer do
   end
 
   @impl true
-  def handle_cast({:iteration_start, snapshot_tab, shards}, state) do
-    # Compute all pairs i with j < i against snapshot from ETS.
-    # Batch updates per shard to reduce message volume.
-    batch_size = 256
-    shard_count = length(shards)
-
-    # We'll store shard -> list of {idx, prefs} in a map
-    empty_buckets = for s <- 0..(shard_count - 1), into: %{}, do: {s, []}
-
-    # iterate j from 0..i-1 (guard against i == 0)
-    {buckets_final, _sent} =
-      if state.index > 0 do
-        Enum.reduce(0..(state.index - 1), {empty_buckets, 0}, fn j, {buckets, sent} ->
-          alice = state.agent
-          bob = get_snapshot_agent(snapshot_tab, j)
-
-          {ap, bp} = MiniSim.Model.Dialog.talk(alice, bob)
-
-          # route both updates to shard owners of i and j
-          si = rem(state.index, shard_count)
-          sj = rem(j, shard_count)
-
-          buckets = Map.update!(buckets, si, &[{state.index, ap} | &1])
-          buckets = Map.update!(buckets, sj, &[{j, bp} | &1])
-
-          # If any bucket reached batch_size, flush it
-          {buckets, sent} = maybe_flush_buckets(buckets, shards, batch_size, sent)
-          {buckets, sent}
-        end)
-      else
-        {empty_buckets, 0}
-      end
-
-    # Flush whatever remains
-    Enum.each(0..(shard_count - 1), fn s ->
-      case Map.get(buckets_final, s) do
-        [] -> :ok
-        updates -> MiniSim.Proc.Aggregator.batch(Enum.at(shards, s), updates)
-      end
-    end)
-
-    # Notify aggregators this agent is done; then notify coordinator
-    Enum.each(shards, &MiniSim.Proc.Aggregator.done/1)
-    send(state.coordinator, {:agent_iteration_done, state.index})
-    {:noreply, %{state | shards: shards, shard_count: shard_count}}
+  def handle_call({:set_prefs, prefs}, _from, state) do
+    new_agent = %{state.agent | preferences: prefs}
+    {:reply, :ok, %{state | agent: new_agent}}
   end
 
   @impl true
-  def handle_cast({:set_prefs, prefs}, state) do
-    new_agent = %{state.agent | preferences: prefs}
-    send(state.coordinator, {:applied, state.index})
-    {:noreply, %{state | agent: new_agent}}
+  def handle_cast({:iteration_start, snapshot_tab}, state) do
+    # Compute all pairs i with j < i against snapshot from ETS.
+    contribs =
+      if state.index > 0 do
+        Enum.reduce(0..(state.index - 1), %{}, fn j, acc ->
+          alice = state.agent
+          bob = get_snapshot_agent(snapshot_tab, j)
+          {ap, bp} = MiniSim.Model.Dialog.talk(alice, bob)
+          acc
+          |> add_contrib(state.index, ap)
+          |> add_contrib(j, bp)
+        end)
+      else
+        %{}
+      end
+
+    send(state.coordinator, {:contribs, state.index, contribs})
+    {:noreply, state}
   end
 
-  defp maybe_flush_buckets(buckets, shards, batch_size, sent) do
-    Enum.reduce(0..(length(shards) - 1), {buckets, sent}, fn s, {acc_buckets, acc_sent} ->
-      list = Map.fetch!(acc_buckets, s)
-      if length(list) >= batch_size do
-        MiniSim.Proc.Aggregator.batch(Enum.at(shards, s), list)
-        {Map.put(acc_buckets, s, []), acc_sent + length(list)}
-      else
-        {acc_buckets, acc_sent}
-      end
-    end)
-  end
 
   defp get_snapshot_agent(tab, idx) do
     case :ets.lookup(tab, idx) do
@@ -123,5 +81,7 @@ defmodule MiniSim.Proc.AgentServer do
     end
   end
 
-  # no local averaging; aggregation is centralized
+  defp add_contrib(map, idx, [a, b, c]) do
+    Map.update(map, idx, [a, b, c], fn [x, y, z] -> [x + a, y + b, z + c] end)
+  end
 end
