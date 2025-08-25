@@ -50,5 +50,24 @@ defmodule MiniSim.Proc do
     agent = Agent.new_agent(rho, pi, option1_pref)
     {agent, rng}
   end
-end
 
+  @doc """
+  Sweep community sizes from min_agents..max_agents and print wall time (ms) per run.
+
+  Mirrors `MiniSim.sweep/5` for the base engine. Only outputs a single integer per
+  line (milliseconds) for each run size.
+  """
+  def sweep(min_agents, max_agents, iterations, seed, chunk_size)
+      when is_integer(min_agents) and min_agents >= 2 and
+             is_integer(max_agents) and max_agents >= min_agents and
+             is_integer(iterations) and iterations >= 0 and
+             is_integer(seed) and is_integer(chunk_size) and chunk_size > 0 do
+    Enum.each(min_agents..max_agents, fn n ->
+      t0 = System.monotonic_time(:millisecond)
+      _ = run(n, iterations, seed, chunk_size)
+      t1 = System.monotonic_time(:millisecond)
+      IO.puts(Integer.to_string(t1 - t0))
+    end)
+    :ok
+  end
+end

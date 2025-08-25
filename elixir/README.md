@@ -65,6 +65,13 @@ Coordinator                                      Agent[0..n-1]
     |--- else: collect final agents & compute stats ->|
 ```
 
+### Sweeping (Proc Engine)
+
+```
+# Print one wall-time ms per line for sizes 5k..20k
+MIX_ENV=prod mix run -e "MiniSim.Proc.sweep(5_000, 20_000, 10, 42, 256)"
+```
+
 ## Notes
 - Uses the same core math, agent, dialog, and transition logic as the main project, without Phoenix, storage, or JSON config.
 - RNG control: Global RNG seeded with `:exsplus` using provided `seed`.

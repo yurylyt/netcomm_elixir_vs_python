@@ -25,6 +25,8 @@ Prereqs: Elixir ≥ 1.18 and Erlang/OTP matching your Elixir, internet access fo
 - Benchmark (simple):
   - `/usr/bin/time -l MIX_ENV=prod mix run -e "MiniSim.run(20_000, 10, 42, 256)"`
   - Prefer consistent CPU/power settings; run multiple trials and average.
+  - Process-based sweep:
+    - `MIX_ENV=prod mix run -e "MiniSim.Proc.sweep(5_000, 20_000, 10, 42, 256)"`
 
 ## Runner Script
 - Script: `./run_sim.sh <language> --agents N --iterations N [--seed N] [--chunk-size N] [--procs N]`

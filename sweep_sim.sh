@@ -2,14 +2,15 @@
 set -euo pipefail
 
 # Sweep simulation sizes from MIN..MAX for a given language implementation.
-# Usage: ./sweep_sim.sh <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--procs N]
+# Usage: ./sweep_sim.sh <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N]
 
 usage() {
   cat >&2 <<USAGE
-Usage: $0 <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--procs N]
+Usage: $0 <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N]
   -i, --iterations    Number of iterations/ticks (non-negative integer)
   -s, --seed          RNG seed (default: 42)
   -c, --chunk-size    Batch size (Elixir async / Python per-task pairs) (default: 256)
+  -E, --engine        Elixir: choose implementation engine: 'base' or 'proc' (default: base)
   -p, --procs         Python: number of worker processes (default: 1)
   -h, --help          Show this help
 Outputs: one line per run containing only elapsed milliseconds.
@@ -24,6 +25,7 @@ ITERS=""
 SEED=42
 CHUNK_SIZE=256
 PROCS=1
+ENGINE="base"
 
 # Positional args
 if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
@@ -41,6 +43,7 @@ while [ $# -gt 0 ]; do
     -i|--iterations|--iters) ITERS="${2:-}"; shift 2 ;;
     -s|--seed) SEED="${2:-}"; shift 2 ;;
     -c|--chunk-size) CHUNK_SIZE="${2:-}"; shift 2 ;;
+    -E|--engine) ENGINE="${2:-}"; shift 2 ;;
     -p|--procs) PROCS="${2:-}"; shift 2 ;;
     -h|--help) usage ;;
     --) shift; break ;;
@@ -78,7 +81,14 @@ case "$LANGUAGE" in
     fi
     (
       cd "$ELIXIR_DIR"
-      MIX_ENV=prod mix run -e "MiniSim.sweep(${MIN_AGENTS}, ${MAX_AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE})"
+      case "$ENGINE" in
+        base)
+          MIX_ENV=prod mix run -e "MiniSim.sweep(${MIN_AGENTS}, ${MAX_AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE})" ;;
+        proc)
+          MIX_ENV=prod mix run -e "MiniSim.Proc.sweep(${MIN_AGENTS}, ${MAX_AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE})" ;;
+        *)
+          echo "Error: Unknown engine '$ENGINE'. Use 'base' or 'proc'." >&2; exit 1 ;;
+      esac
     )
     ;;
   python)
