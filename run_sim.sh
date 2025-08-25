@@ -8,13 +8,14 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<USAGE
-Usage: $0 <language: elixir|python> --agents N --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N]
+Usage: $0 <language: elixir|python> --agents N --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N] [--verbose]
   -a, --agents        Community size (positive integer)
   -i, --iterations    Number of iterations/ticks (non-negative integer)
   -s, --seed          RNG seed (default: 42)
   -c, --chunk-size    Batch size for Elixir async processing (default: 256)
   -E, --engine        Elixir: choose implementation engine: 'base' or 'proc' (default: base)
   -p, --procs         Python: number of worker processes (default: 1)
+  -v, --verbose       Print program output to stdout (default: off)
   -h, --help          Show this help
 USAGE
   exit 1
@@ -27,6 +28,7 @@ SEED=42
 CHUNK_SIZE=256
 PROCS=1
 ENGINE="base"
+VERBOSE=0
 
 # Allow language as the first positional argument if provided
 if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
@@ -48,6 +50,8 @@ while [ $# -gt 0 ]; do
       ENGINE="${2:-}"; shift 2 ;;
     -p|--procs)
       PROCS="${2:-}"; shift 2 ;;
+    -v|--verbose)
+      VERBOSE=1; shift 1 ;;
     -h|--help)
       usage ;;
     --)
@@ -67,6 +71,15 @@ print(int(time.time() * 1000))
 PY
   else
     echo $(( $(date +%s) * 1000 ))
+  fi
+}
+
+# Run a command, redirecting stdout to /dev/null unless --verbose was set
+maybe_quiet() {
+  if [ "$VERBOSE" = "1" ]; then
+    "$@"
+  else
+    "$@" >/dev/null
   fi
 }
 
@@ -102,12 +115,13 @@ case "$LANGUAGE" in
       cd "$ELIXIR_DIR"
       case "$ENGINE" in
         base)
-          MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" > /dev/null ;;
+          ELIXIR_EXPR="IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" ;;
         proc)
-          MIX_ENV=prod mix run -e "IO.inspect(MiniSim.Proc.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" > /dev/null ;;
+          ELIXIR_EXPR="IO.inspect(MiniSim.Proc.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" ;;
         *)
           echo "Error: Unknown engine '$ENGINE'. Use 'base' or 'proc'." >&2; exit 1 ;;
       esac
+      maybe_quiet env MIX_ENV=prod mix run -e "$ELIXIR_EXPR"
     )
     cmd_status=$?
     ;;
@@ -124,12 +138,12 @@ case "$LANGUAGE" in
       exit 1
     fi
 
-    python3 "$PY_MAIN" \
+    maybe_quiet python3 "$PY_MAIN" \
       --agents "$AGENTS" \
       --iterations "$ITERS" \
       --seed "$SEED" \
       --chunk-size "$CHUNK_SIZE" \
-      --procs "$PROCS" > /dev/null
+      --procs "$PROCS"
     cmd_status=$?
     ;;
 
