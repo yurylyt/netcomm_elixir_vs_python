@@ -9,7 +9,6 @@ defmodule MiniSim.Proc.AgentServer do
   """
 
   use GenServer
-  alias MiniSim.Model.Agent
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts)

@@ -10,7 +10,7 @@ defmodule MiniSim.Proc.Coordinator do
   """
 
   use GenServer
-  alias MiniSim.Model.{Agent, Simulation}
+  alias MiniSim.Model.Simulation
   alias MiniSim.Proc.AgentServer
   alias MiniSim.Rng
 
@@ -42,7 +42,7 @@ defmodule MiniSim.Proc.Coordinator do
 
     agent_rows = Enum.reverse(agent_rows)
     # Provide peers to each agent
-    Enum.each(agent_rows, fn {idx, pid} ->
+    Enum.each(agent_rows, fn {_, pid} ->
       AgentServer.set_peers(pid, agent_rows)
     end)
 
@@ -142,4 +142,3 @@ defmodule MiniSim.Proc.Coordinator do
     end
   end
 end
-
