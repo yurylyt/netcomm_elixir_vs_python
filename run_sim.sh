@@ -102,9 +102,9 @@ case "$LANGUAGE" in
       cd "$ELIXIR_DIR"
       case "$ENGINE" in
         base)
-          MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" ;;
+          MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" > /dev/null ;;
         proc)
-          MIX_ENV=prod mix run -e "IO.inspect(MiniSim.Proc.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" ;;
+          MIX_ENV=prod mix run -e "IO.inspect(MiniSim.Proc.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" > /dev/null ;;
         *)
           echo "Error: Unknown engine '$ENGINE'. Use 'base' or 'proc'." >&2; exit 1 ;;
       esac

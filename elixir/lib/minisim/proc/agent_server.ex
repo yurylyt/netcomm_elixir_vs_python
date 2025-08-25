@@ -20,18 +20,14 @@ defmodule MiniSim.Proc.AgentServer do
     total_agents = Keyword.fetch!(opts, :total_agents)
     coordinator = Keyword.fetch!(opts, :coordinator)
     agent = Keyword.fetch!(opts, :agent)
-    peers = Keyword.get(opts, :peers, [])
-
     state = %{
       index: index,
       total_agents: total_agents,
       coordinator: coordinator,
       agent: agent,
-      peers: peers, # list of {idx, pid}
-      updates: [],
-      update_count: 0,
-      expected_updates: max(total_agents - 1, 0),
-      done_notified?: false
+      # iteration-scoped runtime data
+      shards: [],
+      shard_count: 0
     }
 
     {:ok, state}
@@ -40,10 +36,8 @@ defmodule MiniSim.Proc.AgentServer do
   # Public helpers
   def get_agent(pid), do: GenServer.call(pid, :get_agent)
   def get_prefs(pid), do: GenServer.call(pid, :get_prefs)
-  def add_update(pid, prefs), do: GenServer.cast(pid, {:add_update, prefs})
-  def set_peers(pid, peers), do: GenServer.cast(pid, {:set_peers, peers})
-  def iteration_start(pid), do: GenServer.cast(pid, :iteration_start)
-  def apply_updates(pid), do: GenServer.cast(pid, :apply_updates)
+  def iteration_start(pid, snapshot_tab, shards), do: GenServer.cast(pid, {:iteration_start, snapshot_tab, shards})
+  def set_prefs(pid, prefs), do: GenServer.cast(pid, {:set_prefs, prefs})
 
   @impl true
   def handle_call(:get_agent, _from, state) do
@@ -56,67 +50,78 @@ defmodule MiniSim.Proc.AgentServer do
   end
 
   @impl true
-  def handle_cast({:set_peers, peers}, state) do
-    {:noreply, %{state | peers: peers}}
-  end
+  def handle_cast({:iteration_start, snapshot_tab, shards}, state) do
+    # Compute all pairs i with j < i against snapshot from ETS.
+    # Batch updates per shard to reduce message volume.
+    batch_size = 256
+    shard_count = length(shards)
 
-  @impl true
-  def handle_cast(:iteration_start, state) do
-    # Reset accumulators for the new iteration
-    state = %{state | updates: [], update_count: 0, done_notified?: false}
+    # We'll store shard -> list of {idx, prefs} in a map
+    empty_buckets = for s <- 0..(shard_count - 1), into: %{}, do: {s, []}
 
-    # Agent i initiates talks with agents having index < i
-    Enum.each(state.peers, fn {peer_idx, peer_pid} ->
-      if peer_idx < state.index do
-        # Get both full agents in their pre-iteration state
-        alice = state.agent
-        bob = GenServer.call(peer_pid, :get_agent)
+    # iterate j from 0..i-1 (guard against i == 0)
+    {buckets_final, _sent} =
+      if state.index > 0 do
+        Enum.reduce(0..(state.index - 1), {empty_buckets, 0}, fn j, {buckets, sent} ->
+          alice = state.agent
+          bob = get_snapshot_agent(snapshot_tab, j)
 
-        {alice_prefs, bob_prefs} = MiniSim.Model.Dialog.talk(alice, bob)
-        # Accumulate own update
-        send(self(), {:accumulate_local, alice_prefs})
-        # Send update to the peer (asynchronous)
-        GenServer.cast(peer_pid, {:add_update, bob_prefs})
+          {ap, bp} = MiniSim.Model.Dialog.talk(alice, bob)
+
+          # route both updates to shard owners of i and j
+          si = rem(state.index, shard_count)
+          sj = rem(j, shard_count)
+
+          buckets = Map.update!(buckets, si, &[{state.index, ap} | &1])
+          buckets = Map.update!(buckets, sj, &[{j, bp} | &1])
+
+          # If any bucket reached batch_size, flush it
+          {buckets, sent} = maybe_flush_buckets(buckets, shards, batch_size, sent)
+          {buckets, sent}
+        end)
+      else
+        {empty_buckets, 0}
+      end
+
+    # Flush whatever remains
+    Enum.each(0..(shard_count - 1), fn s ->
+      case Map.get(buckets_final, s) do
+        [] -> :ok
+        updates -> MiniSim.Proc.Aggregator.batch(Enum.at(shards, s), updates)
       end
     end)
 
-    {:noreply, state}
+    # Notify aggregators this agent is done; then notify coordinator
+    Enum.each(shards, &MiniSim.Proc.Aggregator.done/1)
+    send(state.coordinator, {:agent_iteration_done, state.index})
+    {:noreply, %{state | shards: shards, shard_count: shard_count}}
   end
 
   @impl true
-  def handle_cast({:add_update, prefs}, state) do
-    state = %{state | updates: [prefs | state.updates], update_count: state.update_count + 1}
-    maybe_notify_done(state)
-  end
-
-  @impl true
-  def handle_cast(:apply_updates, state) do
-    new_prefs = average_preferences(state.updates)
-    new_agent = %{state.agent | preferences: new_prefs}
-    # Ack to coordinator that updates are applied
+  def handle_cast({:set_prefs, prefs}, state) do
+    new_agent = %{state.agent | preferences: prefs}
     send(state.coordinator, {:applied, state.index})
     {:noreply, %{state | agent: new_agent}}
   end
 
-  @impl true
-  def handle_info({:accumulate_local, prefs}, state) do
-    state = %{state | updates: [prefs | state.updates], update_count: state.update_count + 1}
-    maybe_notify_done(state)
+  defp maybe_flush_buckets(buckets, shards, batch_size, sent) do
+    Enum.reduce(0..(length(shards) - 1), {buckets, sent}, fn s, {acc_buckets, acc_sent} ->
+      list = Map.fetch!(acc_buckets, s)
+      if length(list) >= batch_size do
+        MiniSim.Proc.Aggregator.batch(Enum.at(shards, s), list)
+        {Map.put(acc_buckets, s, []), acc_sent + length(list)}
+      else
+        {acc_buckets, acc_sent}
+      end
+    end)
   end
 
-  defp maybe_notify_done(%{update_count: cnt, expected_updates: exp, done_notified?: false} = state)
-       when cnt >= exp and exp > 0 do
-    send(state.coordinator, {:agent_iteration_done, state.index})
-    {:noreply, %{state | done_notified?: true}}
+  defp get_snapshot_agent(tab, idx) do
+    case :ets.lookup(tab, idx) do
+      [{^idx, agent}] -> agent
+      _ -> raise "missing snapshot for agent #{inspect(idx)}"
+    end
   end
 
-  defp maybe_notify_done(state), do: {:noreply, state}
-
-  defp average_preferences([]), do: [0.0, 0.0, 0.0]
-  defp average_preferences(prefs_list) do
-    count = length(prefs_list)
-    prefs_list
-    |> Enum.reduce([0.0, 0.0, 0.0], fn [a1, a2, a3], [b1, b2, b3] -> [a1 + b1, a2 + b2, a3 + b3] end)
-    |> Enum.map(&(&1 / count))
-  end
+  # no local averaging; aggregation is centralized
 end

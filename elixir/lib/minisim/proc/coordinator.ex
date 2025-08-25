@@ -11,7 +11,7 @@ defmodule MiniSim.Proc.Coordinator do
 
   use GenServer
   alias MiniSim.Model.Simulation
-  alias MiniSim.Proc.AgentServer
+  alias MiniSim.Proc.{AgentServer, Aggregator}
   alias MiniSim.Rng
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts)
@@ -31,7 +31,7 @@ defmodule MiniSim.Proc.Coordinator do
     seed = Keyword.fetch!(opts, :seed)
     n = length(agents)
 
-    # Spawn agent processes first with temporary empty peers.
+    # Spawn agent processes
     {:ok, agent_rows} =
       Enum.reduce_while(Enum.with_index(agents), {:ok, []}, fn {agent, idx}, {:ok, acc} ->
         case AgentServer.start_link(index: idx, agent: agent, total_agents: n, coordinator: self()) do
@@ -41,10 +41,17 @@ defmodule MiniSim.Proc.Coordinator do
       end)
 
     agent_rows = Enum.reverse(agent_rows)
-    # Provide peers to each agent
-    Enum.each(agent_rows, fn {_, pid} ->
-      AgentServer.set_peers(pid, agent_rows)
-    end)
+
+    # Spawn shard aggregators
+    shard_count = max(System.schedulers_online(), 2)
+    {:ok, shard_pids} =
+      Enum.reduce_while(0..(shard_count - 1), {:ok, []}, fn _s, {:ok, acc} ->
+        case Aggregator.start_link([]) do
+          {:ok, pid} -> {:cont, {:ok, [pid | acc]}}
+          other -> {:halt, other}
+        end
+      end)
+    shard_pids = Enum.reverse(shard_pids)
 
     state = %{
       agents: agent_rows, # list of {idx, pid}
@@ -53,7 +60,10 @@ defmodule MiniSim.Proc.Coordinator do
       waiting_done: MapSet.new(),
       waiting_applied: MapSet.new(),
       caller: nil,
-      rng: Rng.new(seed)
+      rng: Rng.new(seed),
+      shards: shard_pids,
+      shard_count: shard_count,
+      snapshot_tab: nil
     }
 
     {:ok, state}
@@ -64,7 +74,7 @@ defmodule MiniSim.Proc.Coordinator do
     # kick off first iteration or finish immediately
     state = %{state | caller: from}
     if state.iterations_left > 0 and state.n > 1 do
-      broadcast_iteration_start(state)
+      state = snapshot_and_broadcast(state)
       {:noreply, %{state | waiting_done: all_indices_set(state)}}
     else
       # gather stats immediately
@@ -76,9 +86,24 @@ defmodule MiniSim.Proc.Coordinator do
   def handle_info({:agent_iteration_done, idx}, state) do
     waiting_done = MapSet.delete(state.waiting_done, idx)
     if MapSet.size(waiting_done) == 0 do
-      # All agents finished accumulating updates for this iteration
-      Enum.each(state.agents, fn {_i, pid} -> AgentServer.apply_updates(pid) end)
-      {:noreply, %{state | waiting_done: MapSet.new(), waiting_applied: all_indices_set(state)}}
+      # All agents finished computing; collect sums from shards
+      sums = Enum.map(state.shards, &Aggregator.collect(&1, state.n)) |> merge_sum_maps()
+
+      denom = max(state.n - 1, 1)
+      new_prefs =
+        sums
+        |> Enum.map(fn {idx, [a,b,c]} -> {idx, [a/denom, b/denom, c/denom]} end)
+        |> Map.new()
+
+      # Push updates to agents and wait for acks
+      Enum.each(state.agents, fn {i, pid} ->
+        AgentServer.set_prefs(pid, Map.get(new_prefs, i, AgentServer.get_prefs(pid)))
+      end)
+
+      # cleanup snapshot ETS
+      if state.snapshot_tab, do: :ets.delete(state.snapshot_tab)
+
+      {:noreply, %{state | waiting_done: MapSet.new(), waiting_applied: all_indices_set(state), snapshot_tab: nil}}
     else
       {:noreply, %{state | waiting_done: waiting_done}}
     end
@@ -92,7 +117,7 @@ defmodule MiniSim.Proc.Coordinator do
       state = %{state | waiting_applied: MapSet.new(), iterations_left: state.iterations_left - 1}
       cond do
         state.iterations_left > 0 ->
-          broadcast_iteration_start(state)
+          state = snapshot_and_broadcast(state)
           {:noreply, %{state | waiting_done: all_indices_set(state)}}
         true ->
           # produce final stats
@@ -105,8 +130,17 @@ defmodule MiniSim.Proc.Coordinator do
     end
   end
 
-  defp broadcast_iteration_start(state) do
-    Enum.each(state.agents, fn {_idx, pid} -> AgentServer.iteration_start(pid) end)
+  defp snapshot_and_broadcast(state) do
+    tab = :ets.new(:minisim_snapshot, [:set, :protected, :compressed, read_concurrency: true])
+    # Start new iteration on shards before agents emit updates
+    Enum.each(state.shards, &Aggregator.start_iteration/1)
+    Enum.each(state.agents, fn {idx, pid} ->
+      a = AgentServer.get_agent(pid)
+      :ets.insert(tab, {idx, a})
+    end)
+
+    Enum.each(state.agents, fn {_idx, pid} -> AgentServer.iteration_start(pid, tab, state.shards) end)
+    %{state | snapshot_tab: tab}
   end
 
   defp all_indices_set(state) do
@@ -123,6 +157,12 @@ defmodule MiniSim.Proc.Coordinator do
     prefs_stats = Simulation.get_statistics(agents)
     {votes, _rng2} = vote_results(agents, state.rng)
     %{prefs_stats | vote_results: votes}
+  end
+
+  defp merge_sum_maps(list_of_maps) do
+    Enum.reduce(list_of_maps, %{}, fn m, acc ->
+      Map.merge(acc, m, fn _k, [a1,a2,a3], [b1,b2,b3] -> [a1+b1, a2+b2, a3+b3] end)
+    end)
   end
 
   # Copied vote function to avoid coupling to MiniSim private helpers
