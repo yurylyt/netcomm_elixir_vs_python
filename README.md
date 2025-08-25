@@ -1,11 +1,33 @@
 # Elixir vs Python Performance Comparison
 
-This repository hosts a minimal simulation used to compare Elixir and Python performance on the same problem (all‑pairs agent dialogue with simple probabilistic updates). The Elixir implementation is available now; the Python counterpart will be added under `python/` for side‑by‑side benchmarking.
+This repository hosts a minimal simulation used to compare Elixir and Python performance on the same problem (all‑pairs agent dialogue with simple probabilistic updates). There are three implementations for side‑by‑side benchmarking:
+
+- Elixir (base): async Task engine
+- Elixir (proc): GenServer/Coordinator engine
+- Python: single process with optional multiprocessing
 
 ## Repository Layout
-- `elixir/`: Mix project containing the Elixir MiniSim core (`MiniSim` and `MiniSim.Model.*`).
-- `python/`: Planned Python port with identical behavior and parameters.
-- `AGENTS.md`: Contributor guidelines for structure, style, and workflow.
+- `elixir/`: Mix project containing the Elixir MiniSim core (`MiniSim` and `MiniSim.Model.*`) and both engines.
+- `python/`: Python port with identical behavior and parameters.
+
+## Implementations
+- Elixir — base (async tasks):
+  - Module: `MiniSim`
+  - Entry: `MiniSim.run(num_agents, iterations, seed, chunk_size)`
+  - All‑pairs per tick; pairs are processed in parallel using `Task.async_stream` with `chunk_size` controlling batch size.
+  - Uses a shared 64‑bit LCG RNG wired through the pipeline to ensure determinism across runs.
+
+- Elixir — proc (GenServer):
+  - Module: `MiniSim.Proc`
+  - Entry: `MiniSim.Proc.run(num_agents, iterations, seed, chunk_size)` (chunk size is ignored for parity only)
+  - One GenServer per agent plus a Coordinator. On each tick, the Coordinator snapshots agents (ETS), broadcasts start, collects contributions from agents i for all j < i, merges deterministically, applies preferences, and draws votes.
+  - RNG state is passed from `MiniSim.Proc.run/4` into the Coordinator and consumed in the same order as the base engine. Results match the base engine for the same seed and parameters.
+
+- Python:
+  - CLI: `python3 python/main.py --agents N --iterations N --seed S --chunk-size C [--procs P]`
+  - Library: `from minisim import run; run(agents, iterations, seed, chunk_size, procs=1)`
+  - Single‑process baseline with optional multiprocessing over chunks for pair computation.
+  - Uses the same 64‑bit LCG RNG for deterministic parity with Elixir.
 
 ## Elixir: Quick Start
 Prereqs: Elixir ≥ 1.18 and Erlang/OTP matching your Elixir, internet access for deps (first run).
@@ -29,15 +51,20 @@ Prereqs: Elixir ≥ 1.18 and Erlang/OTP matching your Elixir, internet access fo
     - `MIX_ENV=prod mix run -e "MiniSim.Proc.sweep(5_000, 20_000, 10, 42, 256)"`
 
 ## Runner Script
-- Script: `./run_sim.sh <language> --agents N --iterations N [--seed N] [--chunk-size N] [--procs N]`
+- Script: `./run_sim.sh <language> --agents N --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N]`
 - Example (Elixir): `./run_sim.sh elixir --agents 20000 --iterations 10 --seed 42 --chunk-size 256`
 - Example (Python, 4 procs): `./run_sim.sh python --agents 20000 --iterations 10 --seed 42 --chunk-size 256 --procs 4`
 - Notes:
   - `language`: `elixir` or `python`.
   - `chunk-size` controls async batch size (Elixir) or per-task pairs (Python).
   - `procs` applies to Python only (number of worker processes).
+  - `--engine`: choose Elixir engine (`base` or `proc`); defaults to `base`.
 
-## Python: Status
+### Choosing an engine (Elixir)
+- Use `--engine base` for fastest performance on most hosts (async tasks, chunked).
+- Use `--engine proc` to exercise the GenServer orchestration model; parity with base is guaranteed for identical inputs.
+
+## Python
 Python implementation supports optional multiprocessing:
 - CLI: `python python/main.py --agents 20000 --iterations 10 --seed 42 --chunk-size 256 --procs 4`
 - API: `from minisim import run; run(agents, iterations, seed, chunk_size, procs=1)`
