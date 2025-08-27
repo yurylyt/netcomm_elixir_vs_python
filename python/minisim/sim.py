@@ -86,7 +86,7 @@ def _transition_matrix(alice: Agent, bob: Agent) -> List[List[float]]:
     bob_probs = _choice_probabilities(bob.rho, alice.pi)
 
     disagreement_12 = _build_disagreement_map(1, 2, alice_probs, bob_probs)
-    disagreement_21 = _build_disagreement_map(2, 1, bob_probs, bob_probs)
+    disagreement_21 = _build_disagreement_map(2, 1, bob_probs, alice_probs)
     disagreements = {**disagreement_12, **disagreement_21}
 
     mat: List[List[float]] = []

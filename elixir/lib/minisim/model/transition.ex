@@ -31,7 +31,7 @@ defmodule MiniSim.Model.TransitionMatrix do
     bob_probs = choice_probabilities(bob.rho, alice.pi)
 
     disagreement_12 = build_disagreement_map(1, 2, alice_probs, bob_probs)
-    disagreement_21 = build_disagreement_map(2, 1, bob_probs, bob_probs)
+    disagreement_21 = build_disagreement_map(2, 1, bob_probs, alice_probs)
 
     Map.merge(disagreement_12, disagreement_21)
   end
@@ -66,4 +66,3 @@ defmodule MiniSim.Model.TransitionMatrix do
     {a / total, b / total, c / total}
   end
 end
-
