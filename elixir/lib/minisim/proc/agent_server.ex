@@ -7,8 +7,9 @@ defmodule MiniSim.Proc.AgentServer do
   - Notifies the coordinator when it has collected updates from all its assigned partners.
   - On `:apply_updates`, averages collected updates and updates `agent.preferences`.
 
-  Supports both all-pairs topology (interact with agents < i) and random matching
-  (interact with specified partner list).
+  The coordinator is responsible for partner selection and ensures each agent only receives
+  partners where it is the lower-indexed agent, preventing duplicate processing of pairs.
+  The agent simply iterates over all given partners without filtering.
   """
 
   use GenServer
@@ -57,12 +58,11 @@ defmodule MiniSim.Proc.AgentServer do
 
   @impl true
   def handle_cast({:iteration_start, snapshot_tab, partners}, state) do
-    # Compute interactions based on the provided partners list
-    # Only process pairs where we are the lower-indexed agent to avoid double-counting
-    # Each pair {i, j} where i < j is processed only by agent i
+    # Process all given partners
+    # The coordinator ensures we only get partners where we are the lower-indexed agent
+    # So we process all partners without filtering
     contribs =
       partners
-      |> Enum.filter(fn j -> j > state.index end)
       |> Enum.reduce(%{}, fn j, acc ->
         # This agent (lower index) is alice, partner (higher index) is bob
         lower = state.agent

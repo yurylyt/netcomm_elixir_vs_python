@@ -91,7 +91,7 @@ def run_elixir(agents: int, iterations: int, seed: int, chunk_size: int, engine:
     if engine == "base":
         expr = f"IO.inspect(MiniSim.run({agents}, {iterations}, {seed}, {chunk_size}, {topo_arg}))"
     elif engine == "proc":
-        expr = f"IO.inspect(MiniSim.Proc.run({agents}, {iterations}, {seed}, {chunk_size}))"
+        expr = f"IO.inspect(MiniSim.Proc.run({agents}, {iterations}, {seed}, {chunk_size}, {topo_arg}))"
     else:
         raise ValueError(f"Unknown engine: {engine}")
     

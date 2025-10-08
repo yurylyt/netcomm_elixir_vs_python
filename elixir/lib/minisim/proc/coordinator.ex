@@ -241,11 +241,12 @@ defmodule MiniSim.Proc.Coordinator do
   end
 
   # Build a map of agent_index -> list of partner indices
+  # For each pair {i, j} where i < j, assign j to agent i's partners (not vice versa)
+  # This way, only the lower-indexed agent processes each pair
   defp build_partner_map(pairs, _n) do
     Enum.reduce(pairs, %{}, fn {i, j}, acc ->
-      acc
-      |> Map.update(i, [j], &[j | &1])
-      |> Map.update(j, [i], &[i | &1])
+      # Only agent i (lower index) gets j (higher index) as a partner
+      Map.update(acc, i, [j], &[j | &1])
     end)
   end
 end

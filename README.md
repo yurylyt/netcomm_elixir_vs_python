@@ -273,23 +273,45 @@ elixir-base          Walltime (ms)       1234.5       1230.0         45.2
 /usr/bin/time -l MIX_ENV=prod mix run -e "MiniSim.run(20_000, 10, 42, 256)"
 ```
 
-## Reproducibility
+## Validation & Reproducibility
+
+### Automated Validation
+
+Run the comprehensive validation test suite to verify all engines produce correct results:
+
+```bash
+./validate_engines.sh
+```
+
+This validates:
+- ✅ All-pairs topology produces **identical results** across all three engines
+- ✅ Random matching topology works correctly on all engines
+- ✅ Performance is comparable between Elixir base and proc engines
+
+**See [VALIDATION.md](VALIDATION.md) for detailed validation results and methodology.**
+
+### Reproducibility
 
 Both implementations use the same **64-bit Linear Congruential Generator (LCG)** for deterministic behavior:
 - Same `seed` → Same agent initialization → Same preference updates → Same voting results
 - Cross-language verification: Run with identical parameters and compare outputs
 - RNG state is threaded through the pipeline (Elixir) or confined to parent (Python)
 
-**Verification Example:**
+**Verification Example (all-pairs topology):**
 ```bash
-# Elixir
-MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(100, 5, 42, 32))"
+# Elixir base
+./run_sim.sh elixir -a 100 -i 5 -E base -s 42 -t all -v
+
+# Elixir proc
+./run_sim.sh elixir -a 100 -i 5 -E proc -s 42 -t all -v
 
 # Python
-python python/main.py -a 100 -i 5 -s 42 -c 32
+./run_sim.sh python -a 100 -i 5 -s 42 -p 1 -t all -v
 ```
 
-Both should produce identical `vote_results` and `average_preferences`.
+All three should produce **identical** `vote_results` and `average_preferences`.
+
+**Note on Random Matching:** Random matching topologies (`-t k`) use different RNG seeding methods between Elixir and Python, so they produce different (but equally valid) pair selections. All-pairs topology (`-t all`) is deterministic and produces identical results.
 
 ## Results Template
 
