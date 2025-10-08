@@ -92,12 +92,12 @@ for i in $(seq 1 "$TRIALS"); do
 done
 
 # Python single-process
-echo "Benchmarking Python (single-process)..."
-for i in $(seq 1 "$TRIALS"); do
-  echo "  Trial $i/$TRIALS"
-  RESULT=$(python3 "$MONITOR_SCRIPT" python -a $AGENTS -i $ITERS -c $CHUNK_SIZE -p 1 -t $TOPOLOGY -o csv)
-  echo "python,single,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
-done
+# echo "Benchmarking Python (single-process)..."
+# for i in $(seq 1 "$TRIALS"); do
+#   echo "  Trial $i/$TRIALS"
+#   RESULT=$(python3 "$MONITOR_SCRIPT" python -a $AGENTS -i $ITERS -c $CHUNK_SIZE -p 1 -t $TOPOLOGY -o csv)
+#   echo "python,single,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
+# done
 
 # Python multi-process
 echo "Benchmarking Python (multi-process)..."
