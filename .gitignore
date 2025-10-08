@@ -30,4 +30,4 @@ dist/
 
 paper/*/out/
 
-benchmark_results_*.csv
+benchmark_results*.csv
