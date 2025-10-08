@@ -26,7 +26,7 @@
 \newenvironment{review}{\color{blue}}{}
 \newenvironment{old}{\color{gray}}{}
 
-\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO:\@#1]}}
 
 \begin{document}
 
@@ -50,7 +50,7 @@
 %% The "author" command and its associated commands are used to define
 %% the authors and their affiliations.
 \author[1]{Yurii Lytvynenko}[%
-orcid=0009-0004-0732-0602,
+orcid=0009-0004-0732-0602, % chktex 8
 email=inbox@yury-lytvynenko.com,
 % url=https://yury-lytvynenko.com,
 ]
@@ -58,7 +58,7 @@ email=inbox@yury-lytvynenko.com,
 \fnmark[1]
 
 \author[1,2]{Grygoriy Zholtkevych}[%
-orcid=0000-0002-7515-2143,
+orcid=0000-0002-7515-2143, % chktex 8
 email={g.zholtkevych@karazin.ua,grygoriy.zholtkevych@lnu.edu.ua}
 % url=https://kmitd.github.io/ilaria/,
 ]
@@ -91,30 +91,29 @@ The actor-based Elixir implementation consistently outperformed both task-based 
 \end{abstract}
 
 \begin{keywords}
-Opinion Dynamics \sep 
-Agent-Based Simulation \sep 
-Simulation Runtime Evaluation \sep 
-Elixir Programming Language \sep 
-BEAM Virtual Machine \sep 
-Computational Social Science \sep 
+Opinion Dynamics \sep{} 
+Agent-Based Simulation \sep{}
+Simulation Runtime Evaluation \sep{} 
+Elixir Programming Language \sep{} 
+BEAM Virtual Machine \sep{} 
+Computational Social Science \sep{} 
 Methodological Foundations
 \end{keywords}
 
 \maketitle
 
 \section{Introduction}
-Simulation of opinion dynamics in networked communities is a computationally demanding task. Modern models, such as the extended pairwise dialogue framework \cite{Lytvynenko2025}, represent social interactions as repeated dialogues where agents retain, adopt, or reject opinions based on attributes like resistance and persuasiveness. These models are mathematically rigorous and offer valuable insights into polarization, consensus, and the emergence of alternative viewpoints. However, their computational cost increases rapidly with network size and interaction density.
+Simulation of opinion dynamics in networked communities is a computationally demanding task. Modern models, such as the extended pairwise dialogue framework~\cite{Lytvynenko2025}, represent social interactions as repeated dialogues where agents retain, adopt, or reject opinions based on attributes like resistance and persuasiveness. These models are mathematically rigorous and offer valuable insights into polarization, consensus, and the emergence of alternative viewpoints. However, their computational cost increases rapidly with network size and interaction density.
 
 Selecting an appropriate programming language and runtime environment is therefore critical. The requirements are precise: the simulation must support a large number of lightweight, independent computations, manage concurrency efficiently, and scale across modern multicore processors without significant programmer overhead. While Python is traditionally used in computational social science due to its extensive ecosystem of scientific libraries, its concurrency limitations pose non-trivial challenges for such workloads.
 
-Other languages have also been employed for computational modeling. Julia \cite{Julia2025} offers high numerical performance and a growing ecosystem for scientific computing. However, its concurrency model is still evolving and less mature for large-scale distributed workloads. C and C++ deliver raw performance but require significant manual management of parallelism, memory, and fault tolerance, which increases development complexity and reduces flexibility. In contrast, Elixir \cite{Elixir2025}, built on the Erlang virtual machine (BEAM) \cite{Erlang2025}, provides a concurrency-first design. Its lightweight process model, supervision trees, and fault-tolerant architecture were created for large-scale distributed systems and map naturally onto multi-agent simulations where thousands of dialogues coincide.
+Other languages have also been employed for computational modeling. Julia~\cite{Julia2025} offers high numerical performance and a growing ecosystem for scientific computing. However, its concurrency model is still evolving and less mature for large-scale distributed workloads. C and C++ deliver raw performance but require significant manual management of parallelism, memory, and fault tolerance, which increases development complexity and reduces flexibility. In contrast, Elixir~\cite{Elixir2025}, built on the Erlang virtual machine (BEAM)~\cite{Erlang2025}, provides a concurrency-first design. Its lightweight process model, supervision trees, and fault-tolerant architecture were created for large-scale distributed systems and map naturally onto multi-agent simulations where thousands of dialogues coincide.
 
 In this paper, we argue that Elixir offers unique advantages as the core simulation engine for opinion dynamics models. By evaluating the extended dialogue model in the challenging setting of $N = 200$ agents under all pairs mode, we demonstrate that Elixir provides a scalable and robust foundation for simulation backends in computational social science. Importantly, this evaluation is not an end in itself but a methodological step: it was undertaken to identify the most suitable runtime for subsequent research on the dynamics of community opinions, where the extended dialogue model will be developed and applied at scale.
 
-\section{Background}
-\label{sec:background}
+\section{Background}\label{sec:background}
 \subsection{Opinion Dynamics Model}
-The study of opinion dynamics seeks to understand how individual preferences evolve through repeated interactions within a community. In the extended dialogue model \cite{Lytvynenko2025}, communication is represented as a series of \textbf{pairwise dialogues}. Each dialogue is treated as an atomic operation, where two agents exchange views and update their opinions probabilistically.
+The study of opinion dynamics seeks to understand how individual preferences evolve through repeated interactions within a community. In the extended dialogue model~\cite{Lytvynenko2025}, communication is represented as a series of \textbf{pairwise dialogues}. Each dialogue is treated as an atomic operation, where two agents exchange views and update their opinions probabilistically.
 
 Unlike classical binary models, where agents either retain or adopt an interlocutor’s opinion, the extended framework introduces a third possibility: selecting an alternative state. As a result, each dialogue may lead to one of three outcomes:
 \begin{enumerate}
@@ -136,21 +135,21 @@ The Markovian structure ensures that opinion evolution is both mathematically tr
 \subsection{Computational Requirements}
 Although conceptually simple, the extended dialogue model, where opinion updates occur through pairwise dialogues, becomes computationally demanding at scale. Suppose a network has $N$ agents and, in each iteration, every agent engages in $k$ dialogues with distinct peers (assuming dialogues are undirected):
 
-$$
+\[
 D(N,k)=\frac{N\,k}{2}
-$$
+\]
 
 Over $T$ iterations, the total number of dialogue computations is $T \cdot D$. Each dialogue triggers a probabilistic state update governed by the model’s transition rules, so runtime scales with both $N$ and $k$, and $T$.
 
 To illustrate, consider a sizeable community with $N=100{,}000$ agents where each agent interacts with $k=20$ distinct peers per iteration (e.g., a dense social platform cohort or an enterprise communication snapshot). Then:
 
-$$
+\[
 D(100{,}000,20)=\frac{100{,}000 \times 20}{2}=1{,}000{,}000
-$$
+\]
 
 dialogues \textbf{per iteration}. Across $T=1{,}000$ iterations, that yields
 
-$$T \cdot D=1{,}000 \times 1{,}000{,}000=10^{9}$$
+\[T \cdot D=1{,}000 \times 1{,}000{,}000=10^{9}\]
 
 dialogues – each an independent, lightweight computation whose outcomes must be aggregated into consistent agent states for the next iteration. This profile highlights three practical demands:
 \begin{itemize}
@@ -163,7 +162,7 @@ This workload profile requires a runtime capable of handling massive concurrency
 
 \section{Elixir as a Simulation Runtime}
 
-\textbf{Elixir}, a functional programming language built on the Erlang virtual machine (BEAM) \cite{Elixir2025}, was designed originally for distributed, fault-tolerant systems. Its lightweight process model, supervision trees, and transparent scalability across multicore and distributed environments directly address the requirements identified in Section \ref{sec:background}. These features make Elixir a natural fit for implementing large-scale opinion dynamics simulations in computational social science.
+\textbf{Elixir}, a functional programming language built on the Erlang virtual machine (BEAM)~\cite{Elixir2025}, was designed originally for distributed, fault-tolerant systems. Its lightweight process model, supervision trees, and transparent scalability across multicore and distributed environments directly address the requirements identified in Section~\ref{sec:background}. These features make Elixir a natural fit for implementing large-scale opinion dynamics simulations in computational social science.
 
 \subsection{Concurrency Model}
 Elixir implements the actor model through lightweight processes that communicate via message passing. These processes are inexpensive to create and schedule, enabling thousands to run simultaneously on a single machine. In the context of opinion dynamics, this allows each agent or dialogue to be represented as an isolated process, mirroring the independence of interactions in the model. The result is a natural mapping between simulation logic and execution.
@@ -178,14 +177,14 @@ The BEAM runtime also supports transparent distribution, allowing processes to s
 Python remains the default language for computational modeling due to its extensive scientific libraries and user-friendly syntax. However, its runtime is poorly suited for workloads dominated by massive concurrency:
 
 \begin{itemize}
-	\item The Global Interpreter Lock (GIL) prevents true parallel execution of threads on multiple cores. \cite{PythonThreading}
-	\item Achieving parallelism typically requires additional frameworks such as \emph{multiprocessing} \cite{PythonMultiprocessing}, \emph{Dask} \cite{PythonDask}, or \emph{Ray} \cite{PythonRay}, which add overhead and complexity.
+	\item The Global Interpreter Lock (GIL) prevents true parallel execution of threads on multiple cores.~\cite{PythonThreading}
+	\item Achieving parallelism typically requires additional frameworks such as \emph{multiprocessing}~\cite{PythonMultiprocessing}, \emph{Dask}~\cite{PythonDask}, or \emph{Ray}~\cite{PythonRay}, which add overhead and complexity.
 	\item Fault tolerance and process supervision must be implemented manually, increasing the risk of brittle long-running simulations.
 \end{itemize}
 
 Elixir integrates concurrency, fault tolerance, and distribution at both the language and runtime level. These properties make it particularly well-suited for large-scale opinion dynamics simulations, where each iteration involves thousands or even millions of independent dialogues across a network. By reducing implementation complexity and minimizing runtime overhead, Elixir offers a compelling alternative to Python for executing the simulation core, particularly in scenarios that require sustained high concurrency and reliable long-running performance.
 
-It is worth noting that recent developments in Python (PEP 703) \cite{pep703} have introduced a no-GIL build, which allows for true parallelism across threads. While promising, this feature is not yet the default in production environments, lacks broad library support, and was therefore excluded from our evaluation. We restrict our comparison to the widely used mainstream Python runtime, which remains the de facto standard in computational social science.
+It is worth noting that recent developments in Python (PEP 703)~\cite{pep703} have introduced a no-GIL build, which allows for true parallelism across threads. While promising, this feature is not yet the default in production environments, lacks broad library support, and was therefore excluded from our evaluation. We restrict our comparison to the widely used mainstream Python runtime, which remains the de facto standard in computational social science.
 
 
 
@@ -207,9 +206,9 @@ For $N = 300$, this results in $44{,}850$ dialogues per iteration.
 
 
 \subsection{Experimental Environment}
-All experiments were conducted on a dedicated Amazon EC2 instance of type \textbf{c8g.2xlarge} \cite{AwsInstanceTypes2025}, equipped with \textbf{8 vCPUs} and \textbf{16 GiB RAM}, based on the \textbf{AWS Graviton3 (ARM64) architecture}. The instance was located in the \textbf{us-east-1 region}. CPU frequency scaling was left at the AWS defaults (no explicit pinning to performance mode).
+All experiments were conducted on a dedicated Amazon EC2 instance of type \textbf{c8g.2xlarge}~\cite{AwsInstanceTypes2025}, equipped with \textbf{8 vCPUs} and \textbf{16 GiB RAM}, based on the \textbf{AWS Graviton3 (ARM64) architecture}. The instance was located in the \textbf{us-east-1 region}. CPU frequency scaling was left at the AWS defaults (no explicit pinning to performance mode).
 
-The operating system was \textbf{Ubuntu 24.04 LTS} with kernel version \textbf{6.14.0-1011-aws}.
+The operating system was \textbf{Ubuntu 24.04 LTS} with kernel version \textbf{6.14.0-1011-aws}.% chktex 8
 
 The software stack included:
 \begin{itemize}
@@ -228,7 +227,7 @@ To run the experiments, we developed three independent implementations of the ex
 
 \begin{itemize}
 	\item \textbf{All-pairs interaction} at each iteration, with agent indices ordered ($i < j$) to enforce consistency in dialogue roles.
-	\item \textbf{Random number generation (RNG) parity} through a shared 64-bit Linear Congruential Generator (LCG) \cite{Thomson1958}, seeded identically and consumed in the same order across engines.
+	\item \textbf{Random number generation (RNG) parity} through a shared 64-bit Linear Congruential Generator (LCG)~\cite{Thomson1958}, seeded identically and consumed in the same order across engines.
 	\item \textbf{Aggregation} by summing contributions per agent and dividing by $N-1$.
 	\item \textbf{Rounding} to three decimals at fixed stages, ensuring identical numeric results across languages.
 \end{itemize}
@@ -236,10 +235,10 @@ To run the experiments, we developed three independent implementations of the ex
 It was explicitly validated that all three implementations return identical results given the same parameters and seed, confirming that observed differences in performance are due solely to runtime characteristics rather than algorithmic divergence. Validation was performed by cross-checking outputs across engines, including per-agent preference vectors, average preferences, and vote distributions, ensuring complete agreement within rounding precision.
 
 \subsubsection{Elixir Task Engine}
-Uses \verb|Task.async_stream| to parallelize batches of pairwise dialogues. Each iteration generates all pairs, divides them into chunks, processes them concurrently, and then reduces the results to update agents’ states.
+Uses \verb|Task.async_stream| to parallelize batches of pairwise dialogues. Each iteration generates all pairs, divides them into chunks, processes them concurrently, and then reduces the results to update agents' states.
 
 \subsubsection{Elixir Actor Engine}
-Implements an actor-based design, with one process per agent and a central Coordinator. Each iteration begins with a snapshot of agent states stored in ETS. Agent processes compute contributions against their peers and send results back to the Coordinator, which merges them and updates agent states.
+Implements an actor-based design, with one process per agent and a central Coordinator. Each iteration begins with a snapshot of agent states stored in ETS.\@Agent processes compute contributions against their peers and send results back to the Coordinator, which merges them and updates agent states.
 
 \subsubsection{Python Multiprocessing Engine}
 Mirrors the Elixir Task Engine design, utilizing the multiprocessing module. Pairs are generated with $i < j$, partitioned into chunks, and distributed to worker processes. Results are collected, reduced per agent, and averaged.
@@ -268,7 +267,7 @@ Execution time grows in line with the quadratic complexity of the all-pairs conf
 
 In addition to raw execution time, it is instructive to examine throughput, measured as the number of dialogues processed per second. Throughput was computed as:
 
-$$\text{Throughput} = \frac{\text{Total dialogues}}{\text{Execution time (s)}}$$
+\[\text{Throughput} = \frac{\text{Total dialogues}}{\text{Execution time (s)}}\]
 
 where the total dialogues equal the number of iterations (T = 100) multiplied by $\binom{N}{2}$, and execution time was measured in milliseconds and converted to seconds.
 
@@ -297,13 +296,12 @@ Having established how execution time scales with community size, we next examin
 The choice of 300 agents was deliberate. At this scale, each iteration requires $\binom{300}{2} = 44{,}850$ dialogues, and with 100 iterations, the run produces roughly 4.5 million dialogue computations. This ensures that runtimes are dominated by dialogue processing rather than initialization or warm-up overhead, which plays only a minor role at this load. At the same time, the workload remains tractable on the evaluation hardware (8 vCPUs, 16 GiB RAM) without exhausting memory, and lies within the range commonly used in opinion dynamics studies, where hundreds of agents are sufficient to exhibit realistic aggregate behaviors without entering the territory of very large-scale distributed simulations.
 
 
-Each implementation was executed \textbf{ten times} under these parameters. Table \ref{tab:runtime_trials} reports the average runtime in milliseconds together with the standard deviation.
+Each implementation was executed \textbf{ten times} under these parameters. Table~\ref{tab:runtime_trials} reports the average runtime in milliseconds together with the standard deviation.
 
 \begin{table}[ht]
 \centering
 \caption{Runtimes (ms) across ten repeated trials with 300 agents and 100 iterations.
-Values are reported as mean $\pm$ standard deviation.}
-\label{tab:runtime_trials}
+Values are reported as mean $\pm$ standard deviation.}\label{tab:runtime_trials}
 \begin{tabular}{lc}
 \toprule
 Implementation & Runtime (ms) \\
