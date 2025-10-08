@@ -20,7 +20,7 @@ doc/
 .elixir_ls/
 _elixir/
 
-# Python (planned)
+# Python
 __pycache__/
 .venv/
 venv/
@@ -28,4 +28,4 @@ build/
 dist/
 *.egg-info
 
-AGENTS.md
+paper/*/out/
