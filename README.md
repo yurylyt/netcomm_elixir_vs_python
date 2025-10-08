@@ -14,9 +14,9 @@ This repository hosts a minimal simulation used to compare Elixir and Python per
 ├── python/              # Python port with identical behavior
 ├── run_sim.sh           # Single run wrapper script
 ├── sweep_sim.sh         # Sweep community sizes from M to N agents
-├── sweep_trials.sh      # Run multiple trials for statistical stability
 ├── sweep_chunks.sh      # Sweep chunk sizes (parallelism tuning)
-└── sweep_em_all.sh      # Comprehensive sweep across all engines
+├── sweep_em_all.sh      # Comprehensive sweep across all engines
+└── benchmark_*.sh/py    # Enhanced benchmarking tools (see BENCHMARKING.md)
 ```
 
 ## Quick Start
@@ -149,23 +149,6 @@ Sweep community sizes from MIN to MAX agents, running one simulation per size.
 
 **Output:** One line per run containing elapsed milliseconds
 
-### `sweep_trials.sh` — Multiple Trial Runs
-
-Run multiple trials of the same configuration for statistical analysis.
-
-**Configuration** (edit script to customize):
-- `AGENTS=300`: Community size
-- `ITERS=100`: Iterations per run
-- `PROCS=8`: Python worker processes
-- `TRIALS=10`: Number of trials
-
-**Usage:**
-```bash
-./sweep_trials.sh
-```
-
-**Output:** Three sections (Elixir Base, Elixir Proc, Python multi-process), each printing elapsed milliseconds per trial
-
 ### `sweep_chunks.sh` — Chunk Size Tuning
 
 Sweep chunk sizes from 1 to 1024 to find optimal parallelism settings.
@@ -202,6 +185,23 @@ Convenience script that runs community size sweeps for all three engines.
 
 ## Benchmarking Guidelines
 
+### Quick Start - Enhanced Benchmarking
+
+For comprehensive benchmarking with **walltime**, **memory footprint**, and **CPU usage** metrics:
+
+```bash
+# Install dependencies
+pip install -r python/requirements.txt
+
+# Run multiple trials with full metrics
+./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5
+
+# Single run with metrics
+./benchmark_monitor.py elixir -a 100 -i 10 -E base
+```
+
+**See [BENCHMARKING.md](BENCHMARKING.md) for complete documentation.**
+
 ### Fair Comparison Checklist
 - ✅ Use identical parameters (agents, iterations, seed) across languages
 - ✅ Use production builds: `MIX_ENV=prod` for Elixir
@@ -212,11 +212,32 @@ Convenience script that runs community size sweeps for all three engines.
 
 ### Measurements to Collect
 - **Wall time** (ms): Total elapsed time
-- **CPU time** (ms): Actual CPU consumption
+- **CPU usage** (%): Average CPU utilization (>100% = multi-core)
 - **Max RSS** (KB): Peak memory usage
 - **System info**: Hardware and software configuration
 
-### Example Benchmark Command (macOS/Linux)
+### Enhanced Benchmark Tools ✨
+
+The repository now includes enhanced benchmarking tools:
+
+- **`benchmark_monitor.py`** - Python-based monitoring with `psutil` for accurate metrics
+- **`benchmark_trials_enhanced.sh`** - Multi-trial runner with statistical analysis
+
+These tools measure:
+- ⏱️ **Walltime** (milliseconds)
+- 💾 **Memory footprint** (peak KB)
+- 🔥 **CPU usage** (average % across all cores)
+
+**Example output:**
+```
+Configuration        Metric          Mean         Median       StdDev      
+---------------------------------------------------------------------------
+elixir-base          Walltime (ms)       1234.5       1230.0         45.2
+                     Memory (KB)        45678.0      45500.0        234.5
+                     CPU (%)              125.5        124.0          5.3
+```
+
+### Legacy Benchmark Command (macOS/Linux)
 ```bash
 /usr/bin/time -l MIX_ENV=prod mix run -e "MiniSim.run(20_000, 10, 42, 256)"
 ```

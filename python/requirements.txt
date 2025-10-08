@@ -1,1 +1,2 @@
-# No runtime dependencies yet. Add numpy if needed for vector ops.
+# No runtime dependencies yet. Add numpy
+psutil if needed for vector ops.
