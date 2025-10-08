@@ -27,17 +27,39 @@ def monitor_process(pid: int, interval: float = 0.1) -> Dict[str, float]:
         max_memory = 0
         cpu_samples = []
         
-        while process.is_running():
+        # Initial CPU call to initialize the counter
+        process.cpu_percent()
+        
+        while True:
             try:
-                # Memory in KB
-                mem_info = process.memory_info()
-                current_memory = mem_info.rss / 1024  # Convert bytes to KB
-                max_memory = max(max_memory, current_memory)
+                # Check if process is still running
+                if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
+                    break
                 
-                # CPU percentage
-                cpu_percent = process.cpu_percent(interval=interval)
+                # Memory in KB (include children for accuracy)
+                try:
+                    mem_info = process.memory_info()
+                    current_memory = mem_info.rss / 1024  # Convert bytes to KB
+                    
+                    # Also check children
+                    for child in process.children(recursive=True):
+                        try:
+                            child_mem = child.memory_info()
+                            current_memory += child_mem.rss / 1024
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            pass
+                    
+                    max_memory = max(max_memory, current_memory)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    break
+                
+                # CPU percentage (non-blocking)
+                cpu_percent = process.cpu_percent(interval=0)
                 if cpu_percent > 0:  # Only count non-zero samples
                     cpu_samples.append(cpu_percent)
+                
+                # Sleep to avoid busy-waiting
+                time.sleep(interval)
                 
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 break
@@ -87,18 +109,38 @@ def run_elixir(agents: int, iterations: int, seed: int, chunk_size: int, engine:
         stderr=subprocess.PIPE if not verbose else None
     )
     
-    # Monitor the process
-    metrics = monitor_process(process.pid)
+    # Monitor the process in a separate thread to avoid blocking
+    import threading
+    monitor_metrics = {}
     
-    # Wait for completion
-    process.wait()
+    def monitor():
+        result = monitor_process(process.pid)
+        monitor_metrics.update(result)
+    
+    monitor_thread = threading.Thread(target=monitor, daemon=True)
+    monitor_thread.start()
+    
+    # Wait for completion with timeout (10 minutes max)
+    try:
+        process.wait(timeout=600)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        raise TimeoutError("Elixir process timed out after 10 minutes")
+    
+    # Give monitor thread a moment to finish
+    monitor_thread.join(timeout=1.0)
     
     end_time = time.time()
     walltime_ms = int((end_time - start_time) * 1000)
     
+    # Use monitored metrics or defaults
+    max_memory_kb = monitor_metrics.get("max_memory_kb", 0)
+    avg_cpu_percent = monitor_metrics.get("avg_cpu_percent", 0)
+    
     return {
         "walltime_ms": walltime_ms,
-        **metrics
+        "max_memory_kb": max_memory_kb,
+        "avg_cpu_percent": avg_cpu_percent
     }
 
 
@@ -125,18 +167,38 @@ def run_python(agents: int, iterations: int, seed: int, chunk_size: int, procs: 
         stderr=subprocess.PIPE if not verbose else None
     )
     
-    # Monitor the process
-    metrics = monitor_process(process.pid)
+    # Monitor the process in a separate thread to avoid blocking
+    import threading
+    monitor_metrics = {}
     
-    # Wait for completion
-    process.wait()
+    def monitor():
+        result = monitor_process(process.pid)
+        monitor_metrics.update(result)
+    
+    monitor_thread = threading.Thread(target=monitor, daemon=True)
+    monitor_thread.start()
+    
+    # Wait for completion with timeout (10 minutes max)
+    try:
+        process.wait(timeout=600)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        raise TimeoutError("Python process timed out after 10 minutes")
+    
+    # Give monitor thread a moment to finish
+    monitor_thread.join(timeout=1.0)
     
     end_time = time.time()
     walltime_ms = int((end_time - start_time) * 1000)
     
+    # Use monitored metrics or defaults
+    max_memory_kb = monitor_metrics.get("max_memory_kb", 0)
+    avg_cpu_percent = monitor_metrics.get("avg_cpu_percent", 0)
+    
     return {
         "walltime_ms": walltime_ms,
-        **metrics
+        "max_memory_kb": max_memory_kb,
+        "avg_cpu_percent": avg_cpu_percent
     }
 
 
