@@ -5,9 +5,9 @@ set -euo pipefail
 # Runs multiple trials for both topologies and saves results to separate CSV files
 
 AGENTS=300
-ITERS=10
+ITERS=100
 PROCS=8
-TRIALS=5
+TRIALS=10
 CHUNK_SIZE=256
 RANDOM_K=8
 
