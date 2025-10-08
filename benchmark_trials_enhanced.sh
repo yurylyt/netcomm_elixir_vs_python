@@ -9,6 +9,7 @@ ITERS=10
 PROCS=8
 TRIALS=5
 CHUNK_SIZE=256
+TOPOLOGY="all"
 OUTPUT_FILE="benchmark_results.csv"
 
 usage() {
@@ -19,6 +20,7 @@ Usage: $0 [OPTIONS]
   -t, --trials        Number of trials per configuration (default: 5)
   -p, --procs         Python worker processes (default: 8)
   -c, --chunk-size    Batch size (default: 256)
+  -T, --topology      Topology: 'all' for all-pairs or integer k for random matching (default: all)
   -o, --output        Output CSV file (default: benchmark_results.csv)
   -h, --help          Show this help
 
@@ -40,6 +42,8 @@ while [ $# -gt 0 ]; do
       PROCS="${2:-}"; shift 2 ;;
     -c|--chunk-size)
       CHUNK_SIZE="${2:-}"; shift 2 ;;
+    -T|--topology)
+      TOPOLOGY="${2:-}"; shift 2 ;;
     -o|--output)
       OUTPUT_FILE="${2:-}"; shift 2 ;;
     -h|--help)
@@ -59,7 +63,7 @@ if ! python3 -c "import psutil" 2>/dev/null; then
 fi
 
 # Create CSV header
-echo "language,engine,trial,agents,iterations,chunk_size,procs,walltime_ms,max_memory_kb,avg_cpu_percent" > "$OUTPUT_FILE"
+echo "language,engine,trial,agents,iterations,chunk_size,procs,topology,walltime_ms,max_memory_kb,avg_cpu_percent" > "$OUTPUT_FILE"
 
 echo "Running benchmarks with:"
 echo "  Agents: $AGENTS"
@@ -67,6 +71,7 @@ echo "  Iterations: $ITERS"
 echo "  Trials: $TRIALS"
 echo "  Chunk size: $CHUNK_SIZE"
 echo "  Python procs: $PROCS"
+echo "  Topology: $TOPOLOGY"
 echo "  Output: $OUTPUT_FILE"
 echo ""
 
@@ -74,32 +79,36 @@ echo ""
 echo "Benchmarking Elixir (base engine)..."
 for i in $(seq 1 "$TRIALS"); do
   echo "  Trial $i/$TRIALS"
-  RESULT=$(python3 "$MONITOR_SCRIPT" elixir -a $AGENTS -i $ITERS -c $CHUNK_SIZE -E base -o csv)
-  echo "elixir,base,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$RESULT" >> "$OUTPUT_FILE"
+  RESULT=$(python3 "$MONITOR_SCRIPT" elixir -a $AGENTS -i $ITERS -c $CHUNK_SIZE -E base -t $TOPOLOGY -o csv)
+  echo "elixir,base,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
 done
 
-# Elixir Proc engine
-echo "Benchmarking Elixir (proc engine)..."
-for i in $(seq 1 "$TRIALS"); do
-  echo "  Trial $i/$TRIALS"
-  RESULT=$(python3 "$MONITOR_SCRIPT" elixir -a $AGENTS -i $ITERS -c $CHUNK_SIZE -E proc -o csv)
-  echo "elixir,proc,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$RESULT" >> "$OUTPUT_FILE"
-done
+# Elixir Proc engine (only all-pairs topology)
+if [ "$TOPOLOGY" = "all" ]; then
+  echo "Benchmarking Elixir (proc engine)..."
+  for i in $(seq 1 "$TRIALS"); do
+    echo "  Trial $i/$TRIALS"
+    RESULT=$(python3 "$MONITOR_SCRIPT" elixir -a $AGENTS -i $ITERS -c $CHUNK_SIZE -E proc -t $TOPOLOGY -o csv)
+    echo "elixir,proc,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
+  done
+else
+  echo "Skipping Elixir proc engine (only supports all-pairs topology)"
+fi
 
 # Python single-process
 echo "Benchmarking Python (single-process)..."
 for i in $(seq 1 "$TRIALS"); do
   echo "  Trial $i/$TRIALS"
-  RESULT=$(python3 "$MONITOR_SCRIPT" python -a $AGENTS -i $ITERS -c $CHUNK_SIZE -p 1 -o csv)
-  echo "python,single,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$RESULT" >> "$OUTPUT_FILE"
+  RESULT=$(python3 "$MONITOR_SCRIPT" python -a $AGENTS -i $ITERS -c $CHUNK_SIZE -p 1 -t $TOPOLOGY -o csv)
+  echo "python,single,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
 done
 
 # Python multi-process
 echo "Benchmarking Python (multi-process)..."
 for i in $(seq 1 "$TRIALS"); do
   echo "  Trial $i/$TRIALS"
-  RESULT=$(python3 "$MONITOR_SCRIPT" python -a $AGENTS -i $ITERS -c $CHUNK_SIZE -p $PROCS -o csv)
-  echo "python,multi,$i,$AGENTS,$ITERS,$CHUNK_SIZE,$PROCS,$RESULT" >> "$OUTPUT_FILE"
+  RESULT=$(python3 "$MONITOR_SCRIPT" python -a $AGENTS -i $ITERS -c $CHUNK_SIZE -p $PROCS -t $TOPOLOGY -o csv)
+  echo "python,multi,$i,$AGENTS,$ITERS,$CHUNK_SIZE,$PROCS,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
 done
 
 echo ""

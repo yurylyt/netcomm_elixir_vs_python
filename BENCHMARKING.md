@@ -56,25 +56,29 @@ pip install psutil
 - `-c, --chunk-size N` - Batch size (default: 256)
 - `-E, --engine ENGINE` - Elixir engine: `base` or `proc` (default: base)
 - `-p, --procs N` - Python worker processes (default: 1)
+- `-t, --topology T` - Topology: `all` for all-pairs or integer k for random matching (default: all)
 - `-o, --output FORMAT` - Output format: `csv` or `json` (default: csv)
 - `-v, --verbose` - Print program output
 
 **Examples:**
 ```bash
-# Elixir base engine
-./benchmark_monitor.py elixir -a 100 -i 10 -E base
+# Elixir base engine with all-pairs
+./benchmark_monitor.py elixir -a 100 -i 10 -E base -t all
 
-# Elixir proc engine
+# Elixir base engine with random matching (k=8)
+./benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8
+
+# Elixir proc engine (all-pairs only)
 ./benchmark_monitor.py elixir -a 100 -i 10 -E proc
 
-# Python single-process
-./benchmark_monitor.py python -a 100 -i 10 -p 1
+# Python single-process with random matching
+./benchmark_monitor.py python -a 100 -i 10 -p 1 -t 8
 
-# Python multi-process (8 workers)
-./benchmark_monitor.py python -a 100 -i 10 -p 8
+# Python multi-process (8 workers) with all-pairs
+./benchmark_monitor.py python -a 100 -i 10 -p 8 -t all
 
 # JSON output format
-./benchmark_monitor.py elixir -a 100 -i 10 -E base -o json
+./benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8 -o json
 ```
 
 **Output Format (CSV):**
@@ -103,12 +107,16 @@ Runs multiple trials for each configuration and outputs statistical summary.
 - `-t, --trials N` - Number of trials per configuration (default: 5)
 - `-p, --procs N` - Python worker processes (default: 8)
 - `-c, --chunk-size N` - Batch size (default: 256)
+- `-T, --topology T` - Topology: `all` for all-pairs or integer k for random matching (default: all)
 - `-o, --output FILE` - Output CSV file (default: benchmark_results.csv)
 
-**Example:**
+**Examples:**
 ```bash
-# Run 10 trials with 500 agents, 20 iterations
-./benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -o my_results.csv
+# Run 10 trials with 500 agents, 20 iterations, all-pairs topology
+./benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -T all -o results_all_pairs.csv
+
+# Run 10 trials with random matching topology (k=8)
+./benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -T 8 -o results_random_k8.csv
 ```
 
 **Output:**
@@ -132,6 +140,44 @@ python-single        Walltime (ms)       2345.6       2340.0         78.9
 python-multi         Walltime (ms)        987.6        985.0         34.2
                      Memory (KB)        98765.0      98700.0        456.7
                      CPU (%)              543.2        540.0         12.3
+```
+
+### `benchmark_both_topologies.sh` - Comprehensive Topology Comparison
+
+Runs complete benchmarks comparing all-pairs and random matching topologies side-by-side.
+
+**Usage:**
+```bash
+./benchmark_both_topologies.sh [OPTIONS]
+```
+
+**Options:**
+- `-a, --agents N` - Community size (default: 300)
+- `-i, --iterations N` - Number of iterations (default: 100)
+- `-t, --trials N` - Number of trials per configuration (default: 5)
+- `-p, --procs N` - Python worker processes (default: 8)
+- `-c, --chunk-size N` - Batch size (default: 256)
+- `-k, --random-k N` - K value for random matching (default: 8)
+
+**Example:**
+```bash
+# Compare all-pairs vs random-8 topology
+./benchmark_both_topologies.sh -a 300 -i 100 -t 5 -k 8
+
+# Custom configuration
+./benchmark_both_topologies.sh -a 500 -i 200 -t 10 -p 8 -k 10
+```
+
+**Output:**
+Creates two CSV files:
+- `benchmark_results_all_pairs.csv` - Results for all-pairs topology
+- `benchmark_results_random_k8.csv` - Results for random matching (k=8)
+
+**Quick Comparison:**
+```bash
+# After running the benchmark, compare mean walltimes:
+python3 -c 'import pandas as pd; print(pd.read_csv("benchmark_results_all_pairs.csv").groupby(["language","engine"]).agg({"walltime_ms":"mean"}).round(1))'
+python3 -c 'import pandas as pd; print(pd.read_csv("benchmark_results_random_k8.csv").groupby(["language","engine"]).agg({"walltime_ms":"mean"}).round(1))'
 ```
 
 ## Metrics Explained
@@ -171,12 +217,14 @@ Average CPU utilization across all cores during execution. Values > 100% indicat
 The CSV file contains one row per trial with the following columns:
 
 ```csv
-language,engine,trial,agents,iterations,chunk_size,procs,walltime_ms,max_memory_kb,avg_cpu_percent
-elixir,base,1,300,10,256,1,1234,45678,125.50
-elixir,base,2,300,10,256,1,1240,45690,126.20
-elixir,proc,1,300,10,256,1,1456,56789,135.20
-python,single,1,300,10,256,1,2345,34567,98.70
-python,multi,1,300,10,256,8,987,98765,543.20
+language,engine,trial,agents,iterations,chunk_size,procs,topology,walltime_ms,max_memory_kb,avg_cpu_percent
+elixir,base,1,300,10,256,1,all,1234,45678,125.50
+elixir,base,2,300,10,256,1,all,1240,45690,126.20
+elixir,base,1,300,10,256,1,8,456,45678,125.50
+elixir,proc,1,300,10,256,1,all,1456,56789,135.20
+python,single,1,300,10,256,1,all,2345,34567,98.70
+python,multi,1,300,10,256,8,all,987,98765,543.20
+python,multi,1,300,10,256,8,8,345,98765,543.20
 ```
 
 This format is easily imported into spreadsheet applications, data analysis tools, or plotting libraries.

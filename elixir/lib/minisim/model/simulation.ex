@@ -28,7 +28,8 @@ defmodule MiniSim.Model.Simulation do
     :iteration_stats,
     :seed,
     :tick,
-    :chunk_size
+    :chunk_size,
+    :topology
   ]
 
   @type t :: %__MODULE__{
@@ -37,7 +38,8 @@ defmodule MiniSim.Model.Simulation do
           iteration_stats: [Statistics.t()],
           seed: non_neg_integer(),
           tick: non_neg_integer(),
-          chunk_size: nil | pos_integer()
+          chunk_size: nil | pos_integer(),
+          topology: :all | pos_integer()
         }
 
   def new_simulation(num_iterations, seed) do
@@ -47,7 +49,8 @@ defmodule MiniSim.Model.Simulation do
       iteration_stats: [],
       seed: seed,
       tick: 0,
-      chunk_size: nil
+      chunk_size: nil,
+      topology: :all
     }
   end
 
@@ -79,10 +82,56 @@ defmodule MiniSim.Model.Simulation do
     }
   end
 
-  # Always use exhaustive all-pairs matching
-  def generate_pairs(simulation) do
+  @doc """
+  Generate pairs based on topology setting.
+  - :all -> all-pairs matching
+  - integer k (1..n-1) -> random matching with k interactions per agent
+  """
+  def generate_pairs(simulation, topology \\ :all)
+
+  def generate_pairs(simulation, :all) do
     n = length(simulation.agents)
     for i <- 0..(n - 2), j <- (i + 1)..(n - 1), do: {i, j}
+  end
+
+  def generate_pairs(simulation, k) when is_integer(k) do
+    n = length(simulation.agents)
+    if k < 1 or k >= n do
+      raise ArgumentError, "Random matching requires k in range 1..#{n-1}, got #{k}"
+    end
+    generate_random_pairs(n, k, simulation.seed, simulation.tick)
+  end
+
+  defp generate_random_pairs(n, k, seed, tick) do
+    # Derive a unique seed for this iteration's random matching
+    iteration_seed = :erlang.phash2({seed, tick, :random_pairs})
+    rng = MiniSim.Rng.new(iteration_seed)
+
+    # Generate k random partners for each agent
+    {pairs, _} = Enum.reduce(0..(n - 1), {[], rng}, fn i, {acc_pairs, r} ->
+      {agent_pairs, r2} = generate_agent_pairs(i, n, k, r)
+      {agent_pairs ++ acc_pairs, r2}
+    end)
+
+    # Remove duplicates and ensure i < j ordering
+    pairs
+    |> Enum.map(fn {i, j} -> if i < j, do: {i, j}, else: {j, i} end)
+    |> Enum.uniq()
+  end
+
+  defp generate_agent_pairs(i, n, k, rng) do
+    Enum.reduce(1..k, {[], rng}, fn _, {pairs, r} ->
+      {j, r2} = random_partner(i, n, r)
+      {[{i, j} | pairs], r2}
+    end)
+  end
+
+  defp random_partner(i, n, rng) do
+    {u, rng2} = MiniSim.Rng.uniform(rng)
+    # Map u to [0, n-2] range, then adjust to skip i
+    j_raw = trunc(u * (n - 1))
+    j = if j_raw >= i, do: j_raw + 1, else: j_raw
+    {j, rng2}
   end
 
   def update_agents(updates, agents) do

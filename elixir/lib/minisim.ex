@@ -20,9 +20,10 @@ defmodule MiniSim do
   - iterations: number of iterations (ticks)
   - seed: RNG seed for reproducibility (integer)
   - chunk_size: positive integer batch size for pair chunks (required)
+  - topology: :all for all-pairs, or integer k (1..n-1) for random matching with k interactions per agent
   Decisiveness logic is removed; agents always vote based on preferences.
   """
-  def run(num_agents, iterations, seed, chunk_size)
+  def run(num_agents, iterations, seed, chunk_size, topology \\ :all)
       when is_integer(num_agents) and num_agents > 0 and
              is_integer(iterations) and iterations >= 0 and
              is_integer(seed) and is_integer(chunk_size) and chunk_size > 0 do
@@ -32,6 +33,7 @@ defmodule MiniSim do
       iterations
       |> Simulation.new_simulation(seed)
       |> Map.put(:chunk_size, chunk_size)
+      |> Map.put(:topology, topology)
       |> seed_agents(num_agents, rng)
     {sim, rng} = sim
 
@@ -54,14 +56,14 @@ defmodule MiniSim do
 
   Only outputs a single integer per line (milliseconds) for each run size.
   """
-  def sweep(min_agents, max_agents, iterations, seed, chunk_size)
+  def sweep(min_agents, max_agents, iterations, seed, chunk_size, topology \\ :all)
       when is_integer(min_agents) and min_agents >= 2 and
              is_integer(max_agents) and max_agents >= min_agents and
              is_integer(iterations) and iterations >= 0 and
              is_integer(seed) and is_integer(chunk_size) and chunk_size > 0 do
     Enum.each(min_agents..max_agents, fn n ->
       t0 = System.monotonic_time(:millisecond)
-      _ = run(n, iterations, seed, chunk_size)
+      _ = run(n, iterations, seed, chunk_size, topology)
       t1 = System.monotonic_time(:millisecond)
       IO.puts(Integer.to_string(t1 - t0))
     end)
@@ -89,7 +91,7 @@ defmodule MiniSim do
     agents_snapshot = List.to_tuple(sim.agents)
 
     updates =
-      Simulation.generate_pairs(sim)
+      Simulation.generate_pairs(sim, sim.topology)
       |> Stream.chunk_every(sim.chunk_size)
       |> Task.async_stream(
         fn chunk -> Enum.map(chunk, &Simulation.simulate_dialogue(&1, agents_snapshot)) end,

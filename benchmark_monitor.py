@@ -56,12 +56,18 @@ def monitor_process(pid: int, interval: float = 0.1) -> Dict[str, float]:
 
 
 def run_elixir(agents: int, iterations: int, seed: int, chunk_size: int, engine: str, 
-               script_dir: str, verbose: bool = False) -> Dict[str, float]:
+               topology: str, script_dir: str, verbose: bool = False) -> Dict[str, float]:
     """Run Elixir simulation and measure resources."""
     elixir_dir = os.path.join(script_dir, "elixir")
     
+    # Convert topology to Elixir format
+    if topology == "all":
+        topo_arg = ":all"
+    else:
+        topo_arg = topology
+    
     if engine == "base":
-        expr = f"IO.inspect(MiniSim.run({agents}, {iterations}, {seed}, {chunk_size}))"
+        expr = f"IO.inspect(MiniSim.run({agents}, {iterations}, {seed}, {chunk_size}, {topo_arg}))"
     elif engine == "proc":
         expr = f"IO.inspect(MiniSim.Proc.run({agents}, {iterations}, {seed}, {chunk_size}))"
     else:
@@ -97,7 +103,7 @@ def run_elixir(agents: int, iterations: int, seed: int, chunk_size: int, engine:
 
 
 def run_python(agents: int, iterations: int, seed: int, chunk_size: int, procs: int,
-               script_dir: str, verbose: bool = False) -> Dict[str, float]:
+               topology: str, script_dir: str, verbose: bool = False) -> Dict[str, float]:
     """Run Python simulation and measure resources."""
     py_main = os.path.join(script_dir, "python", "main.py")
     
@@ -107,7 +113,8 @@ def run_python(agents: int, iterations: int, seed: int, chunk_size: int, procs: 
         "--iterations", str(iterations),
         "--seed", str(seed),
         "--chunk-size", str(chunk_size),
-        "--procs", str(procs)
+        "--procs", str(procs),
+        "--topology", topology
     ]
     
     start_time = time.time()
@@ -151,6 +158,8 @@ def main():
                        help="Elixir engine: base or proc (default: base)")
     parser.add_argument("-p", "--procs", type=int, default=1,
                        help="Python worker processes (default: 1)")
+    parser.add_argument("-t", "--topology", type=str, default="all",
+                       help="Topology: 'all' for all-pairs or integer k for random matching (default: all)")
     parser.add_argument("-o", "--output", choices=["csv", "json"], default="csv",
                        help="Output format: csv or json (default: csv)")
     parser.add_argument("-v", "--verbose", action="store_true",
@@ -165,12 +174,12 @@ def main():
         if args.language == "elixir":
             results = run_elixir(
                 args.agents, args.iterations, args.seed, args.chunk_size,
-                args.engine, script_dir, args.verbose
+                args.engine, args.topology, script_dir, args.verbose
             )
         else:
             results = run_python(
                 args.agents, args.iterations, args.seed, args.chunk_size,
-                args.procs, script_dir, args.verbose
+                args.procs, args.topology, script_dir, args.verbose
             )
         
         if args.output == "json":

@@ -14,6 +14,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--seed", "-s", type=int, default=42, help="RNG seed (int)")
     p.add_argument("--chunk-size", "-c", type=int, default=256, help="batch size for pair processing (>0)")
     p.add_argument("--procs", "-p", type=int, default=1, help="number of worker processes (>=1)")
+    p.add_argument("--topology", "-t", type=str, default="all", help="'all' for all-pairs or integer k (1..n-1) for random matching")
     p.add_argument("--sweep-from", type=int, default=None, help="when set with --sweep-to, run sweep from M..N and print wall ms per run (default M=2)")
     p.add_argument("--sweep-to", type=int, default=None, help="upper bound N for sweep; requires --sweep-from or defaults to 2")
     return p.parse_args(argv)
@@ -28,6 +29,16 @@ def main(argv: list[str]) -> int:
     os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
     os.environ.setdefault("MKL_NUM_THREADS", "1")
 
+    # Parse topology
+    topology: str | int
+    if args.topology == "all":
+        topology = "all"
+    else:
+        try:
+            topology = int(args.topology)
+        except ValueError:
+            raise SystemExit(f"--topology must be 'all' or an integer, got '{args.topology}'")
+
     if args.sweep_to is not None:
         # Sweep mode: print only wall ms per run
         from minisim import sweep
@@ -36,11 +47,11 @@ def main(argv: list[str]) -> int:
             raise SystemExit("--sweep-from must be >= 2")
         if args.sweep_to < min_n:
             raise SystemExit("--sweep-to must be >= --sweep-from")
-        sweep(min_n, args.sweep_to, args.iterations, args.seed, args.chunk_size, args.procs)
+        sweep(min_n, args.sweep_to, args.iterations, args.seed, args.chunk_size, args.procs, topology)
     else:
         if args.agents is None:
             raise SystemExit("--agents is required unless --sweep-to is provided")
-        stats = run(args.agents, args.iterations, args.seed, args.chunk_size, args.procs)
+        stats = run(args.agents, args.iterations, args.seed, args.chunk_size, args.procs, topology)
         sys.stdout.write(json.dumps(stats) + "\n")
     return 0
 

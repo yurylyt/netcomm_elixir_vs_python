@@ -1,10 +1,14 @@
 # Elixir vs Python Performance Comparison
 
-This repository hosts a minimal simulation used to compare Elixir and Python performance on the same problem: all-pairs agent dialogue with probabilistic preference updates. The simulation is deterministic (via seeded RNG) and provides three implementations for benchmarking:
+This repository hosts a minimal simulation used to compare Elixir and Python performance on agent dialogue with probabilistic preference updates. The simulation is deterministic (via seeded RNG) and provides three implementations for benchmarking:
 
 - **Elixir (base)**: Async Task engine with parallel pair processing
 - **Elixir (proc)**: GenServer/Coordinator engine (one process per agent)
 - **Python**: Single-process baseline with optional multiprocessing
+
+The simulation supports two interaction topologies:
+- **All-pairs**: Every agent interacts with every other agent (O(n²) complexity)
+- **Random matching**: Each agent has k random interactions per iteration (configurable)
 
 ## Repository Structure
 
@@ -30,18 +34,22 @@ This repository hosts a minimal simulation used to compare Elixir and Python per
 cd elixir
 mix deps.get && MIX_ENV=prod mix compile
 
-# Run simulation - Base engine (async tasks)
+# Run simulation - Base engine (async tasks) with all-pairs topology
 MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(2_000, 10, 12345, 256))"
 
-# Run simulation - Proc engine (GenServers)
+# Run simulation - Base engine with random matching (5 interactions per agent)
+MIX_ENV=prod mix run -e "IO.inspect(MiniSim.run(2_000, 10, 12345, 256, 5))"
+
+# Run simulation - Proc engine (GenServers, all-pairs only)
 MIX_ENV=prod mix run -e "IO.inspect(MiniSim.Proc.run(2_000, 10, 12345, 256))"
 ```
 
-**Signature:** `MiniSim.run(num_agents, iterations, seed, chunk_size)`
+**Signature:** `MiniSim.run(num_agents, iterations, seed, chunk_size, topology \\ :all)`
 - `num_agents`: Community size (positive integer)
 - `iterations`: Number of simulation ticks (≥0)
 - `seed`: RNG seed for reproducibility
 - `chunk_size`: Batch size for async processing (base engine only; proc ignores it)
+- `topology`: `:all` for all-pairs or integer k (1..n-1) for random matching with k interactions per agent (default: `:all`)
 
 ### Python
 
@@ -51,8 +59,11 @@ MIX_ENV=prod mix run -e "IO.inspect(MiniSim.Proc.run(2_000, 10, 12345, 256))"
 # Install dependencies (if any)
 pip install -r python/requirements.txt
 
-# Run simulation (single process)
+# Run simulation (single process, all-pairs)
 python python/main.py --agents 2000 --iterations 10 --seed 12345 --chunk-size 256
+
+# Run with random matching (3 interactions per agent)
+python python/main.py --agents 2000 --iterations 10 --seed 12345 --chunk-size 256 --topology 3
 
 # Run with multiprocessing (4 workers)
 python python/main.py --agents 2000 --iterations 10 --seed 12345 --chunk-size 256 --procs 4
@@ -61,10 +72,11 @@ python python/main.py --agents 2000 --iterations 10 --seed 12345 --chunk-size 25
 ## Implementation Details
 
 ### Elixir — Base Engine (`MiniSim`)
-- **Entry:** `MiniSim.run(num_agents, iterations, seed, chunk_size)`
-- **Processing:** All-pairs matching per tick; pairs processed in parallel via `Task.async_stream`
+- **Entry:** `MiniSim.run(num_agents, iterations, seed, chunk_size, topology \\ :all)`
+- **Processing:** Configurable topology (all-pairs or random matching); pairs processed in parallel via `Task.async_stream`
 - **Concurrency:** `chunk_size` controls batch size for parallel processing
 - **RNG:** Shared 64-bit LCG threaded through pipeline for determinism
+- **Topology:** `:all` for all-pairs, or integer k for random matching with k interactions per agent
 - **Best for:** Maximum performance on most hardware
 
 ### Elixir — Proc Engine (`MiniSim.Proc`)
@@ -80,10 +92,11 @@ python python/main.py --agents 2000 --iterations 10 --seed 12345 --chunk-size 25
 - **Best for:** Understanding actor model patterns, studying process orchestration
 
 ### Python
-- **Entry:** `run(agents, iterations, seed, chunk_size, procs=1)`
-- **Processing:** All-pairs matching with optional multiprocessing over chunks
+- **Entry:** `run(agents, iterations, seed, chunk_size, procs=1, topology="all")`
+- **Processing:** Configurable topology (all-pairs or random matching) with optional multiprocessing over chunks
 - **RNG:** Same 64-bit LCG algorithm as Elixir for cross-language parity
 - **Determinism:** RNG confined to parent process regardless of `procs` setting
+- **Topology:** `"all"` for all-pairs, or integer k for random matching with k interactions per agent
 - **Note:** `chunk_size` controls pairs per worker task when `procs > 1`
 
 ## Scripts Reference
@@ -103,18 +116,23 @@ Wrapper script for running a single simulation and measuring wall time.
 - `-c, --chunk-size N`: Batch size (default: 256)
 - `-E, --engine ENGINE`: Elixir engine: `base` or `proc` (default: base)
 - `-p, --procs N`: Python worker processes (default: 1)
+- `-t, --topology T`: Topology: `all` for all-pairs or integer k (1..n-1) for random matching (default: all)
 - `-v, --verbose`: Print program output to stdout
 - `-h, --help`: Show help
 
 **Examples:**
 ```bash
-# Elixir base engine
+# Elixir base engine with all-pairs topology
 ./run_sim.sh elixir -a 20000 -i 10 -s 42 -c 256
 
-# Elixir proc engine
+# Elixir base engine with random matching (5 interactions per agent)
+./run_sim.sh elixir -a 20000 -i 10 -s 42 -c 256 -t 5
+
+# Elixir proc engine (all-pairs only)
 ./run_sim.sh elixir -a 20000 -i 10 -E proc
 
-# Python with 4 workers
+# Python with 4 workers and random matching
+./run_sim.sh python -a 20000 -i 10 -p 4 -t 3
 ./run_sim.sh python -a 20000 -i 10 -p 4
 ```
 
@@ -137,14 +155,17 @@ Sweep community sizes from MIN to MAX agents, running one simulation per size.
 
 **Examples:**
 ```bash
-# Elixir base: sweep 100-300 agents
-./sweep_sim.sh elixir 100 300 -i 100 -E base
+# Elixir base: sweep 100-300 agents, all-pairs
+./sweep_sim.sh elixir 100 300 -i 100 -E base -t all
 
-# Elixir proc: sweep 100-300 agents
+# Elixir base: sweep 100-300 agents, random matching (k=8)
+./sweep_sim.sh elixir 100 300 -i 100 -E base -t 8
+
+# Elixir proc: sweep 100-300 agents (all-pairs only)
 ./sweep_sim.sh elixir 100 300 -i 100 -E proc
 
-# Python: sweep 100-300 agents with 8 workers
-./sweep_sim.sh python 100 300 -i 100 -p 8
+# Python: sweep 100-300 agents with 8 workers, random matching
+./sweep_sim.sh python 100 300 -i 100 -p 8 -t 8
 ```
 
 **Output:** One line per run containing elapsed milliseconds
@@ -168,7 +189,7 @@ Sweep chunk sizes from 1 to 1024 to find optimal parallelism settings.
 
 ### `sweep_em_all.sh` — Comprehensive Sweep
 
-Convenience script that runs community size sweeps for all three engines.
+Convenience script that runs community size sweeps for all engines and both topologies.
 
 **Configuration** (edit script to customize):
 - `MIN_AGENTS=100`: Starting community size
@@ -181,7 +202,9 @@ Convenience script that runs community size sweeps for all three engines.
 ./sweep_em_all.sh
 ```
 
-**Output:** Three sweep sections (Elixir Base, Elixir Proc, Python multi-process)
+**Output:** Sweep sections for:
+- All-pairs: Elixir Base, Elixir Proc, Python multi-process
+- Random matching (k=8): Elixir Base, Python multi-process
 
 ## Benchmarking Guidelines
 
@@ -193,14 +216,22 @@ For comprehensive benchmarking with **walltime**, **memory footprint**, and **CP
 # Install dependencies
 pip install -r python/requirements.txt
 
-# Run multiple trials with full metrics
-./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5
+# Run multiple trials with full metrics (all-pairs)
+./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5 -T all
+
+# Run multiple trials with random matching (k=8)
+./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5 -T 8
+
+# Compare both topologies automatically
+./benchmark_both_topologies.sh -a 300 -i 100 -t 5 -k 8
 
 # Single run with metrics
-./benchmark_monitor.py elixir -a 100 -i 10 -E base
+./benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8
 ```
 
 **See [BENCHMARKING.md](BENCHMARKING.md) for complete documentation.**
+
+**See [TOPOLOGY_BENCHMARKING.md](TOPOLOGY_BENCHMARKING.md) for topology comparison workflows.**
 
 ### Fair Comparison Checklist
 - ✅ Use identical parameters (agents, iterations, seed) across languages

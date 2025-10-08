@@ -133,6 +133,30 @@ def _generate_all_pairs(n: int) -> List[Tuple[int, int]]:
     return [(i, j) for i in range(n - 1) for j in range(i + 1, n)]
 
 
+def _generate_random_pairs(n: int, k: int, seed: int, tick: int) -> List[Tuple[int, int]]:
+    """Generate random matching with k interactions per agent."""
+    if k < 1 or k >= n:
+        raise ValueError(f"Random matching requires k in range 1..{n-1}, got {k}")
+    
+    # Derive unique seed for this iteration using a deterministic method
+    # Combine seed, tick using multiplication and addition (like Elixir's phash2)
+    iteration_seed = ((seed * 1000000 + tick * 1000 + 42) & 0xFFFFFFFF)
+    rng = Rng(iteration_seed)
+    
+    pairs_set = set()
+    for i in range(n):
+        for _ in range(k):
+            u = rng.uniform()
+            # Map to [0, n-2] range, then adjust to skip i
+            j_raw = int(u * (n - 1))
+            j = j_raw + 1 if j_raw >= i else j_raw
+            # Store with i < j ordering
+            pair = (i, j) if i < j else (j, i)
+            pairs_set.add(pair)
+    
+    return list(pairs_set)
+
+
 def _average_prefs(prefs_list: List[List[float]]) -> List[float]:
     if not prefs_list:
         return [0.0, 0.0, 0.0]
@@ -168,15 +192,30 @@ def _talk_batch(batch: List[Tuple[int, int, Agent, Agent]]) -> List[Tuple[int, L
     return out
 
 
-def run(agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1) -> Stats:
+def run(agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1, topology: str | int = "all") -> Stats:
     """
-    Python variant of MiniSim.run/4 (no concurrency). Always all-pairs matching per tick.
+    Python variant of MiniSim.run. Supports all-pairs or random matching.
+    
+    Args:
+        agents: number of agents
+        iterations: number of iterations
+        seed: RNG seed
+        chunk_size: batch size for processing
+        procs: number of worker processes (default 1)
+        topology: "all" for all-pairs, or integer k (1..n-1) for random matching with k interactions per agent
     """
     assert isinstance(agents, int) and agents > 0
     assert isinstance(iterations, int) and iterations >= 0
     assert isinstance(seed, int)
     assert isinstance(chunk_size, int) and chunk_size > 0
     assert isinstance(procs, int) and procs >= 1
+    
+    # Validate topology
+    if isinstance(topology, int):
+        if topology < 1 or topology >= agents:
+            raise ValueError(f"Random matching requires k in range 1..{agents-1}, got {topology}")
+    elif topology != "all":
+        raise ValueError(f"topology must be 'all' or an integer, got {topology}")
 
     rng = Rng(seed)
 
@@ -203,8 +242,13 @@ def run(agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1
         vote_results[idx] = vote_results.get(idx, 0) + 1
     stats["vote_results"] = vote_results
 
-    for _ in range(iterations):
-        pairs = _generate_all_pairs(len(pop))
+    for tick in range(iterations):
+        # Generate pairs based on topology
+        if topology == "all":
+            pairs = _generate_all_pairs(len(pop))
+        else:
+            pairs = _generate_random_pairs(len(pop), topology, seed, tick)
+        
         updates: Dict[int, List[List[float]]] = {}
 
         if procs <= 1:
@@ -258,13 +302,13 @@ def run(agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1
     return stats
 
 
-def sweep(min_agents: int, max_agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1) -> None:
+def sweep(min_agents: int, max_agents: int, iterations: int, seed: int, chunk_size: int, procs: int = 1, topology: str | int = "all") -> None:
     """Run from min_agents..max_agents, printing wall ms per run (one per line)."""
     assert isinstance(min_agents, int) and min_agents >= 2
     assert isinstance(max_agents, int) and max_agents >= min_agents
     for n in range(min_agents, max_agents + 1):
         t0 = time.perf_counter()
-        _ = run(n, iterations, seed, chunk_size, procs)
+        _ = run(n, iterations, seed, chunk_size, procs, topology)
         t1 = time.perf_counter()
         ms = int((t1 - t0) * 1000)
         print(ms)

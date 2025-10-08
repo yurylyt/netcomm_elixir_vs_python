@@ -1,0 +1,16 @@
+language,engine,trial,agents,iterations,chunk_size,procs,topology,walltime_ms,max_memory_kb,avg_cpu_percent
+elixir,base,1,300,10,256,1,8,727,125552,197.20
+elixir,base,2,300,10,256,1,8,728,123536,219.25
+elixir,base,3,300,10,256,1,8,733,137984,253.05
+elixir,base,4,300,10,256,1,8,723,137568,258.50
+elixir,base,5,300,10,256,1,8,628,128064,240.36
+python,single,1,300,10,256,1,8,730,20304,99.48
+python,single,2,300,10,256,1,8,827,20368,97.39
+python,single,3,300,10,256,1,8,734,20400,98.20
+python,single,4,300,10,256,1,8,731,20320,99.65
+python,single,5,300,10,256,1,8,725,20368,99.02
+python,multi,1,300,10,256,8,8,1257,25728,24.24
+python,multi,2,300,10,256,8,8,1152,25824,25.80
+python,multi,3,300,10,256,8,8,1155,25872,25.32
+python,multi,4,300,10,256,8,8,1159,25936,24.67
+python,multi,5,300,10,256,8,8,1049,26048,27.22

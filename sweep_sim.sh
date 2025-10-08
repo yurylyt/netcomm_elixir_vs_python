@@ -2,16 +2,17 @@
 set -euo pipefail
 
 # Sweep simulation sizes from MIN..MAX for a given language implementation.
-# Usage: ./sweep_sim.sh <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N]
+# Usage: ./sweep_sim.sh <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N] [--topology all|N]
 
 usage() {
   cat >&2 <<USAGE
-Usage: $0 <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N]
+Usage: $0 <language: elixir|python> <min_agents> <max_agents> --iterations N [--seed N] [--chunk-size N] [--engine base|proc] [--procs N] [--topology all|N]
   -i, --iterations    Number of iterations/ticks (non-negative integer)
   -s, --seed          RNG seed (default: 42)
   -c, --chunk-size    Batch size (Elixir async / Python per-task pairs) (default: 256)
   -E, --engine        Elixir: choose implementation engine: 'base' or 'proc' (default: base)
   -p, --procs         Python: number of worker processes (default: 1)
+  -t, --topology      Topology: 'all' for all-pairs or integer k (1..n-1) for random matching (default: all)
   -h, --help          Show this help
 Outputs: one line per run containing only elapsed milliseconds.
 USAGE
@@ -26,6 +27,7 @@ SEED=42
 CHUNK_SIZE=256
 PROCS=1
 ENGINE="base"
+TOPOLOGY="all"
 
 # Positional args
 if [ $# -gt 0 ] && [[ "$1" != -* ]]; then
@@ -45,6 +47,7 @@ while [ $# -gt 0 ]; do
     -c|--chunk-size) CHUNK_SIZE="${2:-}"; shift 2 ;;
     -E|--engine) ENGINE="${2:-}"; shift 2 ;;
     -p|--procs) PROCS="${2:-}"; shift 2 ;;
+    -t|--topology) TOPOLOGY="${2:-}"; shift 2 ;;
     -h|--help) usage ;;
     --) shift; break ;;
     *) echo "Unknown option: $1" >&2; usage ;;
@@ -81,9 +84,15 @@ case "$LANGUAGE" in
     fi
     (
       cd "$ELIXIR_DIR"
+      # Convert topology to Elixir format
+      if [ "$TOPOLOGY" = "all" ]; then
+        TOPO_ARG=":all"
+      else
+        TOPO_ARG="$TOPOLOGY"
+      fi
       case "$ENGINE" in
         base)
-          MIX_ENV=prod mix run -e "MiniSim.sweep(${MIN_AGENTS}, ${MAX_AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE})" ;;
+          MIX_ENV=prod mix run -e "MiniSim.sweep(${MIN_AGENTS}, ${MAX_AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}, ${TOPO_ARG})" ;;
         proc)
           MIX_ENV=prod mix run -e "MiniSim.Proc.sweep(${MIN_AGENTS}, ${MAX_AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE})" ;;
         *)
@@ -106,6 +115,7 @@ case "$LANGUAGE" in
       --seed "$SEED" \
       --chunk-size "$CHUNK_SIZE" \
       --procs "$PROCS" \
+      --topology "$TOPOLOGY" \
       --sweep-from "$MIN_AGENTS" \
       --sweep-to "$MAX_AGENTS"
     ;;
