@@ -83,17 +83,13 @@ for i in $(seq 1 "$TRIALS"); do
   echo "elixir,base,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
 done
 
-# Elixir Proc engine (only all-pairs topology)
-if [ "$TOPOLOGY" = "all" ]; then
-  echo "Benchmarking Elixir (proc engine)..."
-  for i in $(seq 1 "$TRIALS"); do
-    echo "  Trial $i/$TRIALS"
-    RESULT=$(python3 "$MONITOR_SCRIPT" elixir -a $AGENTS -i $ITERS -c $CHUNK_SIZE -E proc -t $TOPOLOGY -o csv)
-    echo "elixir,proc,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
-  done
-else
-  echo "Skipping Elixir proc engine (only supports all-pairs topology)"
-fi
+# Elixir Proc engine (now supports all topologies)
+echo "Benchmarking Elixir (proc engine)..."
+for i in $(seq 1 "$TRIALS"); do
+  echo "  Trial $i/$TRIALS"
+  RESULT=$(python3 "$MONITOR_SCRIPT" elixir -a $AGENTS -i $ITERS -c $CHUNK_SIZE -E proc -t $TOPOLOGY -o csv)
+  echo "elixir,proc,$i,$AGENTS,$ITERS,$CHUNK_SIZE,1,$TOPOLOGY,$RESULT" >> "$OUTPUT_FILE"
+done
 
 # Python single-process
 echo "Benchmarking Python (single-process)..."

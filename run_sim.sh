@@ -127,7 +127,7 @@ case "$LANGUAGE" in
         base)
           ELIXIR_EXPR="IO.inspect(MiniSim.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}, ${TOPO_ARG}))" ;;
         proc)
-          ELIXIR_EXPR="IO.inspect(MiniSim.Proc.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}))" ;;
+          ELIXIR_EXPR="IO.inspect(MiniSim.Proc.run(${AGENTS}, ${ITERS}, ${SEED}, ${CHUNK_SIZE}, ${TOPO_ARG}))" ;;
         *)
           echo "Error: Unknown engine '$ENGINE'. Use 'base' or 'proc'." >&2; exit 1 ;;
       esac

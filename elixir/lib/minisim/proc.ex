@@ -22,13 +22,15 @@ defmodule MiniSim.Proc do
   - iterations: number of iterations (>=0)
   - seed: RNG seed
   - chunk_size: ignored (kept for API parity)
+  - topology: :all for all-pairs, or integer k (1..n-1) for random matching with k interactions per agent
   """
-  def run(num_agents, iterations, seed, _chunk_size)
+  def run(num_agents, iterations, seed, _chunk_size, topology \\ :all)
       when is_integer(num_agents) and num_agents > 0 and
              is_integer(iterations) and iterations >= 0 and is_integer(seed) do
     {agents, rng} = seed_agents(num_agents, Rng.new(seed))
     # Pass RNG state (post-seeding) to the coordinator for deterministic parity
-    Coordinator.run(agents, iterations, rng)
+    # Also pass the original seed for pair generation
+    Coordinator.run(agents, iterations, rng, topology, seed)
   end
 
   defp seed_agents(n, rng) do
@@ -50,17 +52,17 @@ defmodule MiniSim.Proc do
   @doc """
   Sweep community sizes from min_agents..max_agents and print wall time (ms) per run.
 
-  Mirrors `MiniSim.sweep/5` for the base engine. Only outputs a single integer per
+  Mirrors `MiniSim.sweep/6` for the base engine. Only outputs a single integer per
   line (milliseconds) for each run size.
   """
-  def sweep(min_agents, max_agents, iterations, seed, chunk_size)
+  def sweep(min_agents, max_agents, iterations, seed, chunk_size, topology \\ :all)
       when is_integer(min_agents) and min_agents >= 2 and
              is_integer(max_agents) and max_agents >= min_agents and
              is_integer(iterations) and iterations >= 0 and
              is_integer(seed) and is_integer(chunk_size) and chunk_size > 0 do
     Enum.each(min_agents..max_agents, fn n ->
       t0 = System.monotonic_time(:millisecond)
-      _ = run(n, iterations, seed, chunk_size)
+      _ = run(n, iterations, seed, chunk_size, topology)
       t1 = System.monotonic_time(:millisecond)
       IO.puts(Integer.to_string(t1 - t0))
     end)
