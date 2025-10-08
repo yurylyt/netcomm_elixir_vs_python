@@ -1,0 +1,4 @@
+language,engine,n_trials,Walltime (ms) - Median,Walltime (ms) - 95% CI Lower,Walltime (ms) - 95% CI Upper,Walltime (ms) - CI Width,Memory (KB) - Median,Memory (KB) - 95% CI Lower,Memory (KB) - 95% CI Upper,Memory (KB) - CI Width,CPU (%) - Median,CPU (%) - 95% CI Lower,CPU (%) - 95% CI Upper,CPU (%) - CI Width
+elixir,base,10,2280.5,2279.0,2324.0,45.0,146602.0,143290.0,150274.0,6984.0,354.42,353.24,355.7,2.4599999999999795
+elixir,proc,10,2693.0,2689.0,2696.0,7.0,135752.0,133554.0,137816.0,4262.0,430.66999999999996,428.20000000000005,431.83,3.6299999999999386
+python,multi,10,6845.5,6800.0,6887.0,87.0,155354.0,155248.0,155424.0,176.0,23.035,22.98,23.174999999999997,0.19499999999999673
