@@ -296,29 +296,33 @@ Having established how execution time scales with community size, we next examin
 The choice of 300 agents was deliberate. At this scale, each iteration requires $\binom{300}{2} = 44{,}850$ dialogues, and with 100 iterations, the run produces roughly 4.5 million dialogue computations. This ensures that runtimes are dominated by dialogue processing rather than initialization or warm-up overhead, which plays only a minor role at this load. At the same time, the workload remains tractable on the evaluation hardware (8 vCPUs, 16 GiB RAM) without exhausting memory, and lies within the range commonly used in opinion dynamics studies, where hundreds of agents are sufficient to exhibit realistic aggregate behaviors without entering the territory of very large-scale distributed simulations.
 
 
-Each implementation was executed \textbf{ten times} under these parameters. Table~\ref{tab:runtime_trials} reports the average runtime in milliseconds together with the standard deviation.
+Each implementation was executed \textbf{ten times} under these parameters. Table~\ref{tab:runtime_trials} reports the median runtime and 95\% confidence intervals for each engine.
 
 \begin{table}[ht]
 \centering
-\caption{Runtimes (ms) across ten repeated trials with 300 agents and 100 iterations.
-Values are reported as mean $\pm$ standard deviation.}\label{tab:runtime_trials}
-\begin{tabular}{lc}
+\caption{Performance metrics across ten repeated trials with 300 agents and 100 iterations.
+Values are reported as median with 95\% confidence intervals.}\label{tab:runtime_trials}
+\begin{tabular}{lccc}
 \toprule
-Implementation & Runtime (ms) \\
+Metric & Elixir Task & Elixir Actor & Python Multi \\
 \midrule
-Elixir Task Engine & $20,799 \pm 107$ \\
-Elixir Actor Engine & $17,770 \pm 87$ \\ 
-Python Multiprocessing & $28,377 \pm 67$ \\
+Walltime (ms) & 21,512 & 19,041 & 29,775 \\
+95\% CI & [21,431, 21,584] & [18,944, 19,102] & [29,735, 29,806] \\
+Memory (KB) & 291,336 & 230,850 & 184,240 \\
+95\% CI & [288,440, 300,916] & [227,224, 233,710] & [183,776, 184,364] \\
+CPU (\%) & 624.1 & 728.6 & 65.5 \\
+95\% CI & [623.0, 624.6] & [727.7, 729.5] & [65.3, 65.6] \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 The repeated trials confirm several points:
 \begin{itemize}
-	\item \textbf{Elixir Actor Engine} is consistently the most efficient, completing runs in \textasciitilde{}17.7 seconds on average.
-	\item \textbf{Elixir Task Engine} averages \textasciitilde{}21 seconds, about 17\% slower than Proc but still far faster than Python.
-	\item \textbf{Python multiprocessing} requires \textasciitilde{}28 seconds, 60\% more than the runtime of Elixir Actor Engine.
-	\item \textbf{Stability:} All implementations show very small variance (standard deviations under 1\% of the mean), indicating that runtimes are stable and reproducible.
+	\item \textbf{Elixir Actor Engine} is consistently the most efficient, completing runs in \textasciitilde{}19.0 seconds on average, with the highest CPU utilization (728.6\%) indicating effective use of all 8 cores.
+	\item \textbf{Elixir Task Engine} averages \textasciitilde{}21.5 seconds, about 13\% slower than Actor but still far faster than Python, with lower CPU utilization (624.1\%) suggesting less efficient parallelization.
+	\item \textbf{Python multiprocessing} requires \textasciitilde{}29.8 seconds, 56\% more than Elixir Actor Engine, with notably low CPU utilization (65.5\%) indicating poor parallel scaling.
+	\item \textbf{Stability:} All implementations show very small confidence intervals (CI widths under 1\% of median for walltime), indicating that runtimes are stable and reproducible.
+	\item \textbf{Memory usage:} Elixir implementations consume more memory than Python, with Task Engine using the most (291 MB) due to concurrent task overhead, while Actor Engine (231 MB) is more efficient. Python's lower memory footprint (184 MB) reflects sequential processing within workers.
 \end{itemize}
 
 These results reinforce the conclusion that Elixir offers clear performance advantages for highly concurrent workloads. Moreover, the stability across trials demonstrates that the observed differences are not due to random noise but reflect genuine runtime characteristics.
