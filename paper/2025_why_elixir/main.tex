@@ -106,7 +106,7 @@ Selecting an appropriate programming language and runtime environment is therefo
 
 Other languages have also been employed for computational modeling. Julia~\cite{Julia2025} offers high numerical performance and a growing ecosystem for scientific computing. However, its concurrency model is still evolving and less mature for large-scale distributed workloads. C and C++ deliver raw performance but require significant manual management of parallelism, memory, and fault tolerance, which increases development complexity and reduces flexibility. In contrast, Elixir~\cite{Elixir2025}, built on the Erlang virtual machine (BEAM)~\cite{Erlang2025}, provides a concurrency-first design. Its lightweight process model, supervision trees, and fault-tolerant architecture were created for large-scale distributed systems and map naturally onto multi-agent simulations where thousands of dialogues coincide.
 
-In this paper, we argue that Elixir offers unique advantages as the core simulation engine for opinion dynamics models. By evaluating the extended dialogue model in the challenging setting of $N = 200$ agents under all pairs mode, we demonstrate that Elixir provides a scalable and robust foundation for simulation backends in computational social science. Importantly, this evaluation is not an end in itself but a methodological step: it was undertaken to identify the most suitable runtime for subsequent research on the dynamics of community opinions, where the extended dialogue model will be developed and applied at scale.
+In this paper, we argue that Elixir offers unique advantages as the core simulation engine for opinion dynamics models. By evaluating the extended dialogue model in the challenging setting of $N = 300$ agents under all pairs mode, we demonstrate that Elixir provides a scalable and robust foundation for simulation backends in computational social science. Importantly, this evaluation is not an end in itself but a methodological step: it was undertaken to identify the most suitable runtime for subsequent research on the dynamics of community opinions, where the extended dialogue model will be developed and applied at scale.
 
 \section{Background}\label{sec:background}
 \subsection{Opinion Dynamics Model}
@@ -250,7 +250,7 @@ Execution time grows in line with the quadratic complexity of the all-pairs conf
 
 \begin{itemize}
 \item \textbf{Elixir Actor Engine} consistently delivers the best results across all tested community sizes. Despite the coordination overhead of its GenServer design, it handles scaling more efficiently, leading to lower execution times throughout.
-\item \textbf{Elixir Task Engine} performs well but is outpaced by the proc engine even at small sizes, suggesting that its task scheduling overhead accumulates less favorably.
+\item \textbf{Elixir Task Engine} performs well but is outpaced by the Actor engine even at small sizes, suggesting that its task scheduling overhead accumulates less favorably.
 \item \textbf{Python multiprocessing} lags significantly behind both Elixir implementations. The gap widens with larger N, reflecting the steep cost of inter-process communication and serialization.
 \end{itemize}
 
@@ -268,7 +268,7 @@ In addition to raw execution time, it is instructive to examine throughput, meas
 
 where the total dialogues equal the number of iterations (T = 100) multiplied by $\binom{N}{2}$, and execution time was measured in milliseconds and converted to seconds.
 
-Across all tested community sizes, \textbf{Elixir Actor Engine} consistently achieves the highest throughput, surpassing both Elixir Task Engine and Python. While Elixir Task Engine performs well, it is outpaced by the proc engine, indicating that the GenServer-based design not only scales better but also processes dialogues faster in absolute terms. Python multiprocessing lags substantially behind, reflecting the cost of inter-process communication and serialization overhead.
+Across all tested community sizes, \textbf{Elixir Actor Engine} consistently achieves the highest throughput, surpassing both Elixir Task Engine and Python. While Elixir Task Engine performs well, it is outpaced by the Actor engine, indicating that the GenServer-based design not only scales better but also processes dialogues faster in absolute terms. Python multiprocessing lags substantially behind, reflecting the cost of inter-process communication and serialization overhead.
 
 \begin{figure}
   \centering
@@ -312,7 +312,7 @@ The configuration for the all-pairs topology was:
 	\item \textbf{Agents:} 300
 	\item \textbf{Iterations:} 100
 	\item \textbf{Interaction pattern:} all pairs
-	\item \textbf{Random seed:} identical across engines and fixed accross runs
+\item \textbf{Random seed:} identical across engines and fixed across runs
 \end{itemize}
 
 The choice of 300 agents was deliberate. At this scale, each iteration requires $\binom{300}{2} = 44{,}850$ dialogues, and with 100 iterations, the run produces roughly 4.5 million dialogue computations. This ensures that runtimes are dominated by dialogue processing rather than initialization or warm-up overhead, which plays only a minor role at this load. At the same time, the workload remains tractable on the evaluation hardware (8 vCPUs, 16 GiB RAM) without exhausting memory, and lies within the range commonly used in opinion dynamics studies, where hundreds of agents are sufficient to exhibit realistic aggregate behaviors without entering the territory of very large-scale distributed simulations.
@@ -334,6 +334,8 @@ Memory (KB) & 290,948 & 225,986 & 184,104 \\
 95\% CI & [289,206, 298,916] & [217,496, 229,036] & [183,934, 184,456] \\
 CPU (\%) & 629.3 & 731.9 & 593.0 \\
 95\% CI & [627.4, 630.6] & [730.2, 733.7] & [592.2, 594.6] \\
+Throughput\\ 
+(dialogues/s) & $\approx 208k$ & $\approx 237k$ & $\approx 152k$  \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -377,6 +379,8 @@ Memory (KB) & 149,316 & 135,402 & 155,318 \\
 95\% CI & [145,388, 155,492] & [134,004, 138,166] & [155,280, 155,424] \\
 CPU (\%) & 357.5 & 432.0 & 660.5 \\
 95\% CI & [355.0, 360.8] & [428.6, 435.7] & [655.2, 661.2] \\
+Throughput\\ 
+(dialogues/s) & $\approx 52.7k$ & $\approx 44.6k$ & $\approx 17.4k$  \\
 \bottomrule
 \end{tabular}
 \end{table}
