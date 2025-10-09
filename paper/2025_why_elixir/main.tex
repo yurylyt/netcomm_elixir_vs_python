@@ -375,14 +375,14 @@ These findings highlight that \textbf{topology matters} for runtime selection. W
 
 \section{Conclusions}
 
-This work examined the suitability of Elixir as a runtime environment for large-scale simulations of opinion dynamics. Using the extended dialogue model with all-pairs interaction as a computational stress test, we compared three implementations: an actor-based Elixir engine, a task-based Elixir engine, and a Python multiprocessing baseline. The purpose of this evaluation was not to establish a general benchmarking framework, but to support the authors' ongoing research on community opinion dynamics by identifying a runtime environment that balances correctness, reproducibility, and performance.
+This work examined the suitability of Elixir as a runtime environment for large-scale simulations of opinion dynamics. Using the extended dialogue model under two distinct interaction topologies --- dense all-pairs and sparse random matching --- we compared three implementations: an actor-based Elixir engine, a task-based Elixir engine, and a Python multiprocessing baseline. The purpose of this evaluation was not to establish a general benchmarking framework, but to support the authors' ongoing research on community opinion dynamics by identifying a runtime environment that balances correctness, reproducibility, and performance.
 
-The experiments demonstrated that Elixir provides clear advantages for highly concurrent workloads. Both Elixir implementations consistently outperformed Python, with the proc engine showing the best overall efficiency and stability across repeated runs. The results confirm that the concurrency-first design of the BEAM runtime offers tangible benefits for agent-based simulations that require millions of independent, lightweight interactions to be executed and aggregated deterministically.
+The experiments demonstrated that Elixir provides clear advantages for highly concurrent workloads, though the optimal implementation varies with topology. For dense all-pairs interactions (4.5 million dialogues), the Actor engine excelled with superior parallelization and throughput. For sparse random matching (120,000 dialogues with $k=8$ peers per agent), the Task engine proved more efficient, as coordination overhead became proportionally more significant than raw dialogue processing. Python multiprocessing consistently lagged behind both Elixir implementations regardless of topology, showing 56--200\% longer runtimes and poor CPU utilization (23--65\% vs.\ 350--730\% for Elixir). The results confirm that the concurrency-first design of the BEAM runtime offers tangible benefits for agent-based simulations that require millions of independent, lightweight interactions to be executed and aggregated deterministically.
 
 At the same time, several limitations must be acknowledged. 
 \begin{enumerate}
     \item The current implementations were evaluated on a single 8-core instance, and while they scaled well up to a few thousand agents, attempts to simulate \textbf{10,000 agents failed due to memory limitations}. This highlights the need for further optimization and, potentially, distributed execution to extend the approach to larger communities. 
-    \item The evaluation focused exclusively on the dense all-pairs interaction pattern; exploring more realistic topologies such as random matching or scale-free networks remains an important direction for future work. 
+    \item While we evaluated two topologies (all-pairs and random matching with $k=8$), exploring additional realistic network structures such as scale-free networks, small-world topologies, or dynamic community detection remains an important direction for future work. 
     \item Emerging Python runtimes with no-GIL support (PEP 703) may alter the performance landscape. A systematic evaluation of these builds is left for future work, as they are not yet mainstream and their ecosystem support remains limited.
 \end{enumerate}
 
@@ -391,11 +391,11 @@ At the same time, several limitations must be acknowledged.
 Having established Elixir as a suitable choice, the next steps of the work will focus not on further runtime benchmarking, but on advancing the modeling itself: exploring richer agent attributes, network topologies, and empirical calibration. The following directions, therefore, outline the substantive research agenda beyond the technical runtime decision.
 \begin{itemize}
 	\item \textbf{Overcoming the 10k-agent barrier:} optimize memory usage and explore distributed execution strategies across multiple nodes.
-	\item \textbf{Alternative interaction topologies:} extend experiments beyond all-pairs to include random matching, cliques, and scale-free networks.
-	\item \textbf{Distributed scalability:} test Elixir’s native distribution capabilities in larger clusters to evaluate horizontal scaling.
+	\item \textbf{Alternative interaction topologies:} extend experiments to include scale-free networks, small-world structures, and community-based topologies with varying density patterns.
+	\item \textbf{Distributed scalability:} test Elixir's native distribution capabilities in larger clusters to evaluate horizontal scaling.
 	\item \textbf{Dynamic agent attributes:} allow resistance and persuasiveness to evolve with interaction history, making simulations more realistic.
 	\item \textbf{Empirical calibration:} integrate data from surveys or social media to validate and tune model parameters.
-    \item \textbf{Hybrid workflow:} employ Elixir for running large-scale simulations while using Python’s mature ecosystem for post-simulation data analysis and visualization.
+    \item \textbf{Hybrid workflow:} employ Elixir for running large-scale simulations while using Python's mature ecosystem for post-simulation data analysis and visualization.
 \end{itemize}
 
 
