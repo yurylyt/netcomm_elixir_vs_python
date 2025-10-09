@@ -259,7 +259,7 @@ Execution time grows in line with the quadratic complexity of the all-pairs conf
 
 \begin{figure}
   \centering
-  \includegraphics[width=\linewidth]{images/wall_time_community_100-300.pdf}
+  \includegraphics[width=\linewidth]{images/wall_time_community_100-300.pdf} % chktex 8
   \caption{Execution time (ms) for 100 iterations of the all-pairs interaction model as a function of community size N}
 \end{figure}
 
@@ -275,7 +275,7 @@ Across all tested community sizes, \textbf{Elixir Actor Engine} consistently ach
 
 \begin{figure}
   \centering
-  \includegraphics[width=\linewidth]{images/throughput_community_100-300.pdf}
+  \includegraphics[width=\linewidth]{images/throughput_community_100-300.pdf} % chktex 8
   \caption{Throughput (dialogues/sec) for 100 iterations under all-pairs interaction, as a function of community size N}
 \end{figure}
 
@@ -327,6 +327,50 @@ The repeated trials confirm several points:
 
 These results reinforce the conclusion that Elixir offers clear performance advantages for highly concurrent workloads. Moreover, the stability across trials demonstrates that the observed differences are not due to random noise but reflect genuine runtime characteristics.
 
+
+\subsubsection{Random Matching Topology}
+To assess how interaction topology affects performance, we repeated the experiment using a \textbf{random matching} pattern instead of all-pairs. Under random matching, each agent is paired with $k=8$ randomly selected distinct peers per iteration, reducing the number of dialogues from $\binom{N}{2}$ to $\frac{N \cdot k}{2}$.
+
+With 300 agents, $k=8$ peers, and 100 iterations, random matching produces 120,000 total dialogues --- a 97.3\% reduction compared to the 4.5 million dialogues in the all-pairs configuration. This sparser interaction pattern more closely resembles realistic social network dynamics where agents engage in limited interactions per time step.
+
+All other experimental parameters remained identical:
+\begin{itemize}
+	\item \textbf{Agents:} 300
+	\item \textbf{Iterations:} 100
+	\item \textbf{Random seed:} identical across engines
+	\item \textbf{Trials:} 10 repeated runs per engine
+\end{itemize}
+
+Table~\ref{tab:runtime_trials_random} presents the performance metrics for random matching topology.
+
+\begin{table}[ht]
+\centering
+\caption{Performance metrics across ten repeated trials with 300 agents, 100 iterations, and random matching topology.
+Values are reported as median with 95\% confidence intervals.}\label{tab:runtime_trials_random}
+\begin{tabular}{lccc}
+\toprule
+Metric & Elixir Task & Elixir Actor & Python Multi \\
+\midrule
+Walltime (ms) & 2,281 & 2,693 & 6,846 \\
+95\% CI & [2,279, 2,324] & [2,689, 2,696] & [6,800, 6,887] \\
+Memory (KB) & 146,602 & 135,752 & 155,354 \\
+95\% CI & [143,290, 150,274] & [133,554, 137,816] & [155,248, 155,424] \\
+CPU (\%) & 354.4 & 430.7 & 23.0 \\
+95\% CI & [353.2, 355.7] & [428.2, 431.8] & [23.0, 23.2] \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The results reveal several noteworthy patterns:
+\begin{itemize}
+	\item \textbf{Performance reversal:} Unlike the all-pairs configuration, \textbf{Elixir Task Engine} (2.3s) now outperforms \textbf{Elixir Actor Engine} (2.7s) by approximately 18\%. This suggests that the Actor engine's coordination overhead becomes proportionally more expensive when dialogue volume is low, while Task's simpler scheduling model is more efficient for sparse workloads.
+	\item \textbf{Python still lags:} \textbf{Python multiprocessing} requires 6.8 seconds, still 3$\times$ slower than Elixir Task and 2.5$\times$ slower than Elixir Actor, though the absolute gap narrows due to reduced computational load.
+	\item \textbf{CPU utilization drops:} Both Elixir implementations show lower CPU usage (354\% and 431\%) compared to all-pairs, reflecting the reduced parallelism available when only 1,200 dialogues occur per iteration (vs.\ 44,850 in all-pairs). Python's CPU usage remains extremely low (23\%), indicating it cannot effectively parallelize even this reduced workload.
+	\item \textbf{Memory efficiency:} Memory consumption decreased across all engines, with Elixir Actor using the least (136 MB), followed by Task (147 MB) and Python (155 MB). The reduced dialogue volume eliminates the memory pressure observed in all-pairs.
+	\item \textbf{Exceptional stability:} All engines show very tight confidence intervals, with the Actor engine exhibiting remarkable precision (CI width of only 7ms), demonstrating consistent performance across trials.
+\end{itemize}
+
+These findings highlight that \textbf{topology matters} for runtime selection. While the Actor engine excels at dense all-pairs interactions where massive concurrency is available, the Task engine becomes more efficient for sparse topologies where coordination overhead dominates. Python remains consistently slower regardless of topology, though the performance gap narrows as computational intensity decreases.
 
 
 \section{Conclusions}
