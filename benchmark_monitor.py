@@ -21,15 +21,19 @@ except ImportError:
 
 
 def monitor_process(pid: int, interval: float = 0.1) -> Dict[str, float]:
-    """Monitor a process and return resource usage metrics."""
+    """Monitor a process and return resource usage metrics.
+    
+    Uses overall system CPU for accurate multi-core measurement,
+    and per-process memory tracking for accurate memory usage,
+    assuming the benchmark runs on an isolated machine.
+    """
     try:
         process = psutil.Process(pid)
         max_memory = 0
         cpu_samples = []
-        tracked_children = {}  # Keep track of children we've seen
         
-        # Initial CPU call to initialize the counter
-        process.cpu_percent()
+        # Initialize system CPU measurement
+        psutil.cpu_percent(interval=None, percpu=False)
         
         while True:
             try:
@@ -37,52 +41,42 @@ def monitor_process(pid: int, interval: float = 0.1) -> Dict[str, float]:
                 if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
                     break
                 
-                # Memory in KB (include children for accuracy)
+                # Get all processes in this tree (parent + all descendants)
+                all_procs = [process]
                 try:
-                    mem_info = process.memory_info()
-                    current_memory = mem_info.rss / 1024  # Convert bytes to KB
-                    
-                    # Also check children
-                    for child in process.children(recursive=True):
+                    all_procs.extend(process.children(recursive=True))
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+                
+                # Memory in KB (sum across all processes in the tree)
+                current_memory = 0
+                try:
+                    for proc in all_procs:
                         try:
-                            child_mem = child.memory_info()
-                            current_memory += child_mem.rss / 1024
+                            mem_info = proc.memory_info()
+                            current_memory += mem_info.rss / 1024
                         except (psutil.NoSuchProcess, psutil.AccessDenied):
                             pass
                     
                     max_memory = max(max_memory, current_memory)
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    break
-                
-                # CPU percentage - use interval-based measurement for accuracy
-                # This includes all threads in the process
-                cpu_percent = process.cpu_percent(interval=None)
-                
-                # Get all children and track their CPU
-                current_children = {}
-                try:
-                    for child in process.children(recursive=True):
-                        try:
-                            # Initialize tracking for new children
-                            if child.pid not in tracked_children:
-                                child.cpu_percent()  # Initialize
-                                tracked_children[child.pid] = child
-                            
-                            child_cpu = child.cpu_percent(interval=None)
-                            cpu_percent += child_cpu
-                            current_children[child.pid] = child
-                        except (psutil.NoSuchProcess, psutil.AccessDenied):
-                            pass
-                    
-                    # Update tracked children to current set
-                    tracked_children = current_children
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
                 
-                if cpu_percent > 0:  # Only count non-zero samples
+                # Measure overall system CPU usage
+                # This returns percentage where 100% = all cores fully utilized
+                # We need to convert to per-core basis (so 800% on 8 cores = 100% here)
+                cpu_percent_total = psutil.cpu_percent(interval=None, percpu=False)
+                
+                # Convert to per-core percentage (multiply by number of cores)
+                # This makes it consistent with per-process measurement conventions
+                num_cores = psutil.cpu_count() or 1
+                cpu_percent = (cpu_percent_total / 100.0) * num_cores * 100.0
+                
+                # Only record non-zero samples
+                if cpu_percent > 0:
                     cpu_samples.append(cpu_percent)
                 
-                # Sleep to avoid busy-waiting
+                # Sleep before next sample
                 time.sleep(interval)
                 
             except (psutil.NoSuchProcess, psutil.AccessDenied):
