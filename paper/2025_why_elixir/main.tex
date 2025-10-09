@@ -84,10 +84,7 @@ email={g.zholtkevych@karazin.ua,grygoriy.zholtkevych@lnu.edu.ua}
 
 
 \begin{abstract}
-Simulating opinion dynamics requires executing millions of lightweight, independent dialogues in a reproducible way, posing challenges for conventional runtimes. This paper evaluates Elixir as a simulation backend, leveraging its concurrency-first design on the Erlang virtual machine (BEAM). We implement an extended dialogue model in three variants: an actor-based Elixir engine, a task-based Elixir engine, and a Python multiprocessing baseline. All three were validated to produce identical outputs given the same parameters and seed, ensuring that differences arise only from runtime performance.
-
-The actor-based Elixir implementation consistently outperformed both task-based Elixir and Python multiprocessing implementations, achieving faster runtimes. Execution time scaled quadratically with community size, as expected, while throughput plateaued at different ceilings due to runtime overheads. Repeated trials with 300 agents and 100 iterations confirmed the stability of results. The findings establish Elixir as a robust and efficient choice for high-concurrency simulations in computational social science. While the scope of this study is limited to selecting an appropriate runtime environment, it provides the methodological foundation for the authors’ broader research on modeling opinion dynamics in networked communities.
-
+We evaluate Elixir as a simulation runtime for opinion dynamics by implementing the same extended pairwise dialogue model in three engines with RNG parity: an Elixir \emph{actor} engine, an Elixir \emph{task} engine, and a Python \emph{multiprocessing} baseline, ensuring identical outputs given the same seed. On a dense all-pairs stress test (\(N{=}300\), \(T{=}100\), \(\sim\)4.5M dialogues), the \emph{actor} engine was fastest; under a sparse random-matching topology (\(k{=}8\); 120k dialogues) the \emph{task} engine outperformed \emph{actor} by \(\approx\)18\%. Both Elixir engines consistently exceeded Python. Ten repeated trials produced tight 95\% confidence intervals, confirming stability and efficient multicore utilization on BEAM. We conclude that Elixir is a robust choice for high-concurrency agent-based simulations, with topology guiding engine selection (actor for dense, task for sparse). This runtime decision provides the methodological foundation for our subsequent modeling work.
 \end{abstract}
 
 \begin{keywords}
@@ -127,7 +124,7 @@ By explicitly modeling \textbf{resistance} and \textbf{persuasiveness} as indepe
 
 
 \subsection{Markovian Transition Structure}
-The dialogue process is formalized as a Markov chain. Each pair of interacting agents constitutes a state, defined by their current opinions. Transition probabilities between states are governed by the agents’ resistance ($\rho$) and persuasiveness ($\pi$) values. This leads to a stochastic transition matrix $T$, where each row sums to one and encodes the likelihood of moving from one dialogue outcome to another.
+The dialogue process is formalized as a Markov chain. Each pair of interacting agents constitutes a state, defined by their current opinions. Transition probabilities between states are governed by the agents' resistance ($\rho$) and persuasiveness ($\pi$) values. This leads to a stochastic transition matrix $T$, where each row sums to one and encodes the likelihood of moving from one dialogue outcome to another.
 
 The Markovian structure ensures that opinion evolution is both mathematically tractable and computationally efficient to implement, while still capturing non-trivial behaviors such as deadlocks, polarization, or convergence to alternatives.
 
@@ -139,7 +136,7 @@ Although conceptually simple, the extended dialogue model, where opinion updates
 D(N,k)=\frac{N\,k}{2}
 \]
 
-Over $T$ iterations, the total number of dialogue computations is $T \cdot D$. Each dialogue triggers a probabilistic state update governed by the model’s transition rules, so runtime scales with both $N$ and $k$, and $T$.
+Over $T$ iterations, the total number of dialogue computations is $T \cdot D$. Each dialogue triggers a probabilistic state update governed by the model's transition rules, so runtime scales with both $N$ and $k$, and $T$.
 
 To illustrate, consider a sizeable community with $N=100{,}000$ agents where each agent interacts with $k=20$ distinct peers per iteration (e.g., a dense social platform cohort or an enterprise communication snapshot). Then:
 
@@ -151,7 +148,7 @@ dialogues \textbf{per iteration}. Across $T=1{,}000$ iterations, that yields
 
 \[T \cdot D=1{,}000 \times 1{,}000{,}000=10^{9}\]
 
-dialogues – each an independent, lightweight computation whose outcomes must be aggregated into consistent agent states for the next iteration. This profile highlights three practical demands:
+dialogues --- each an independent, lightweight computation whose outcomes must be aggregated into consistent agent states for the next iteration. This profile highlights three practical demands:
 \begin{itemize}
 	\item \textbf{High volume of independent interactions} (embarrassingly parallel within an iteration);
 	\item \textbf{Natural concurrency} (amenable to multi-core and distributed execution);
@@ -217,7 +214,7 @@ The software stack included:
     \item No external Python packages were required beyond the standard library.
 \end{itemize}
 
-Both implementations were installed from Ubuntu’s package repositories (apt) to ensure a consistent and reproducible setup.
+Both implementations were installed from Ubuntu's package repositories (apt) to ensure a consistent and reproducible setup.
 
 
 The benchmarks were run on a \textbf{dedicated instance} without competing workloads.
@@ -280,7 +277,7 @@ Across all tested community sizes, \textbf{Elixir Actor Engine} consistently ach
 \end{figure}
 
 
-It should be noted that these measurements are based on \textbf{single runs per configuration}. While absolute values may vary across repeated executions, the observed ordering of performance and relative scaling trends provide clear evidence of Elixir’s advantage as a simulation runtime.
+It should be noted that these measurements are based on \textbf{single runs per configuration}. While absolute values may vary across repeated executions, the observed ordering of performance and relative scaling trends provide clear evidence of Elixir's advantage as a simulation runtime.
 
 
 \subsection{Repeated Trials at Fixed Parameters}

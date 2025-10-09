@@ -26,6 +26,7 @@ def monitor_process(pid: int, interval: float = 0.1) -> Dict[str, float]:
         process = psutil.Process(pid)
         max_memory = 0
         cpu_samples = []
+        tracked_children = {}  # Keep track of children we've seen
         
         # Initial CPU call to initialize the counter
         process.cpu_percent()
@@ -53,8 +54,31 @@ def monitor_process(pid: int, interval: float = 0.1) -> Dict[str, float]:
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     break
                 
-                # CPU percentage (non-blocking)
-                cpu_percent = process.cpu_percent(interval=0)
+                # CPU percentage - use interval-based measurement for accuracy
+                # This includes all threads in the process
+                cpu_percent = process.cpu_percent(interval=None)
+                
+                # Get all children and track their CPU
+                current_children = {}
+                try:
+                    for child in process.children(recursive=True):
+                        try:
+                            # Initialize tracking for new children
+                            if child.pid not in tracked_children:
+                                child.cpu_percent()  # Initialize
+                                tracked_children[child.pid] = child
+                            
+                            child_cpu = child.cpu_percent(interval=None)
+                            cpu_percent += child_cpu
+                            current_children[child.pid] = child
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            pass
+                    
+                    # Update tracked children to current set
+                    tracked_children = current_children
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+                
                 if cpu_percent > 0:  # Only count non-zero samples
                     cpu_samples.append(cpu_percent)
                 
