@@ -281,13 +281,38 @@ It should be noted that these measurements are based on \textbf{single runs per 
 
 
 \subsection{Repeated Trials at Fixed Parameters}
-Having established how execution time scales with community size, we next examine performance under fixed parameters by conducting repeated trials. This setting provides a complementary view, focusing on the stability and relative efficiency of the three implementations when the workload is held constant. The configuration was:
+Having established how execution time scales with community size, we next examine performance under fixed parameters by conducting repeated trials. This setting provides a complementary view, focusing on the stability and relative efficiency of the three implementations when the workload is held constant.
+
+\subsubsection{Benchmarking Methodology}
+To ensure reliable and reproducible performance measurements, we developed a systematic benchmarking infrastructure. The methodology consists of three components:
+
+\textbf{Resource Monitoring.} Each simulation run is monitored using the Python \texttt{psutil} library~\cite{PythonPsutil}, which tracks the entire process tree (parent and all child processes). Three metrics are collected:
+\begin{itemize}
+	\item \textbf{Wall-clock time} (ms): total elapsed time from process start to completion;
+	\item \textbf{Peak memory usage} (KB): maximum resident set size (RSS) across the process tree;
+	\item \textbf{Average CPU utilization} (\%): mean CPU usage measured as system-wide CPU percentage scaled by core count, representing the effective parallelization (e.g., 800\% indicates full utilization of 8 cores).
+\end{itemize}
+
+Metrics are sampled at 100ms intervals throughout execution. Memory is tracked per-process and summed across all descendants to capture the full resource footprint of concurrent implementations.
+
+\textbf{Statistical Analysis.} Raw benchmark data from multiple trials are aggregated using a bootstrap method~\cite{Efron1979} to compute robust confidence intervals. For each metric and configuration, we calculate:
+\begin{itemize}
+	\item \textbf{Median}: the central tendency, robust to outliers;
+	\item \textbf{95\% confidence interval}: derived from 10,000 bootstrap samples with replacement, providing upper and lower bounds on the median estimate.
+\end{itemize}
+
+This approach avoids distributional assumptions and provides reliable interval estimates even with small sample sizes (n=10 trials).
+
+\textbf{Execution Control.} Benchmarks are orchestrated by shell scripts that execute each configuration multiple times with identical parameters (agents, iterations, seed, chunk size). Results are recorded in CSV format with one row per trial, enabling reproducibility and subsequent statistical analysis. All benchmarks were run on an isolated AWS EC2 instance (c8g.2xlarge, ARM64) without competing workloads to minimize measurement noise.
+
+\subsubsection{All-Pairs Topology Results}
+The configuration for the all-pairs topology was:
 
 \begin{itemize}
 	\item \textbf{Agents:} 300
 	\item \textbf{Iterations:} 100
 	\item \textbf{Interaction pattern:} all pairs
-	\item \textbf{Random seed:} identical across engines
+	\item \textbf{Random seed:} identical across engines and fixed accross runs
 \end{itemize}
 
 The choice of 300 agents was deliberate. At this scale, each iteration requires $\binom{300}{2} = 44{,}850$ dialogues, and with 100 iterations, the run produces roughly 4.5 million dialogue computations. This ensures that runtimes are dominated by dialogue processing rather than initialization or warm-up overhead, which plays only a minor role at this load. At the same time, the workload remains tractable on the evaluation hardware (8 vCPUs, 16 GiB RAM) without exhausting memory, and lies within the range commonly used in opinion dynamics studies, where hundreds of agents are sufficient to exhibit realistic aggregate behaviors without entering the territory of very large-scale distributed simulations.
@@ -303,26 +328,24 @@ Values are reported as median with 95\% confidence intervals.}\label{tab:runtime
 \toprule
 Metric & Elixir Task & Elixir Actor & Python Multi \\
 \midrule
-Walltime (ms) & 21,512 & 19,041 & 29,775 \\
-95\% CI & [21,431, 21,584] & [18,944, 19,102] & [29,735, 29,806] \\
-Memory (KB) & 291,336 & 230,850 & 184,240 \\
-95\% CI & [288,440, 300,916] & [227,224, 233,710] & [183,776, 184,364] \\
-CPU (\%) & 624.1 & 728.6 & 65.5 \\
-95\% CI & [623.0, 624.6] & [727.7, 729.5] & [65.3, 65.6] \\
+Walltime (ms) & 21,520 & 18,895 & 29,521 \\
+95\% CI & [21,450, 21,567] & [18,828, 18,941] & [29,429, 29,614] \\
+Memory (KB) & 290,948 & 225,986 & 184,104 \\
+95\% CI & [289,206, 298,916] & [217,496, 229,036] & [183,934, 184,456] \\
+CPU (\%) & 629.3 & 731.9 & 593.0 \\
+95\% CI & [627.4, 630.6] & [730.2, 733.7] & [592.2, 594.6] \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 The repeated trials confirm several points:
 \begin{itemize}
-	\item \textbf{Elixir Actor Engine} is consistently the most efficient, completing runs in \textasciitilde{}19.0 seconds on average, with the highest CPU utilization (728.6\%) indicating effective use of all 8 cores.
-	\item \textbf{Elixir Task Engine} averages \textasciitilde{}21.5 seconds, about 13\% slower than Actor but still far faster than Python, with lower CPU utilization (624.1\%) suggesting less efficient parallelization.
-	\item \textbf{Python multiprocessing} requires \textasciitilde{}29.8 seconds, 56\% more than Elixir Actor Engine, with notably low CPU utilization (65.5\%) indicating poor parallel scaling.
+	\item \textbf{Elixir Actor Engine} is consistently the most efficient, completing runs in \textasciitilde{}18.9 seconds on average, with the highest CPU utilization (731.9\%) indicating effective use of all 8 cores.
+	\item \textbf{Elixir Task Engine} averages \textasciitilde{}21.5 seconds, about 14\% slower than Actor but still faster than Python, with lower CPU utilization (629.3\%) suggesting less efficient parallelization.
+	\item \textbf{Python multiprocessing} requires \textasciitilde{}29.5 seconds, 56\% more than Elixir Actor Engine, with CPU utilization (593.0\%) still lower than Elixir implementations but substantially higher than previously observed.
 	\item \textbf{Stability:} All implementations show very small confidence intervals (CI widths under 1\% of median for walltime), indicating that runtimes are stable and reproducible.
-	\item \textbf{Memory usage:} Elixir implementations consume more memory than Python, with Task Engine using the most (291 MB) due to concurrent task overhead, while Actor Engine (231 MB) is more efficient. Python's lower memory footprint (184 MB) reflects sequential processing within workers.
-\end{itemize}
-
-These results reinforce the conclusion that Elixir offers clear performance advantages for highly concurrent workloads. Moreover, the stability across trials demonstrates that the observed differences are not due to random noise but reflect genuine runtime characteristics.
+	\item \textbf{Memory usage:} Elixir implementations consume more memory than Python, with Task Engine using the most (291 MB) due to concurrent task overhead, while Actor Engine (226 MB) is more efficient. Python's lower memory footprint (184 MB) reflects sequential processing within workers.
+\end{itemize}These results reinforce the conclusion that Elixir offers clear performance advantages for highly concurrent workloads. Moreover, the stability across trials demonstrates that the observed differences are not due to random noise but reflect genuine runtime characteristics.
 
 
 \subsubsection{Random Matching Topology}
@@ -334,7 +357,7 @@ All other experimental parameters remained identical:
 \begin{itemize}
 	\item \textbf{Agents:} 300
 	\item \textbf{Iterations:} 100
-	\item \textbf{Random seed:} identical across engines
+	\item \textbf{Random seed:} identical across engines and fixed across runs
 	\item \textbf{Trials:} 10 repeated runs per engine
 \end{itemize}
 
@@ -348,12 +371,12 @@ Values are reported as median with 95\% confidence intervals.}\label{tab:runtime
 \toprule
 Metric & Elixir Task & Elixir Actor & Python Multi \\
 \midrule
-Walltime (ms) & 2,281 & 2,693 & 6,846 \\
-95\% CI & [2,279, 2,324] & [2,689, 2,696] & [6,800, 6,887] \\
-Memory (KB) & 146,602 & 135,752 & 155,354 \\
-95\% CI & [143,290, 150,274] & [133,554, 137,816] & [155,248, 155,424] \\
-CPU (\%) & 354.4 & 430.7 & 23.0 \\
-95\% CI & [353.2, 355.7] & [428.2, 431.8] & [23.0, 23.2] \\
+Walltime (ms) & 2,278 & 2,693 & 6,900 \\
+95\% CI & [2,276, 2,327] & [2,691, 2,694] & [6,887, 6,946] \\
+Memory (KB) & 149,316 & 135,402 & 155,318 \\
+95\% CI & [145,388, 155,492] & [134,004, 138,166] & [155,280, 155,424] \\
+CPU (\%) & 357.5 & 432.0 & 660.5 \\
+95\% CI & [355.0, 360.8] & [428.6, 435.7] & [655.2, 661.2] \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -361,20 +384,18 @@ CPU (\%) & 354.4 & 430.7 & 23.0 \\
 The results reveal several noteworthy patterns:
 \begin{itemize}
 	\item \textbf{Performance reversal:} Unlike the all-pairs configuration, \textbf{Elixir Task Engine} (2.3s) now outperforms \textbf{Elixir Actor Engine} (2.7s) by approximately 18\%. This suggests that the Actor engine's coordination overhead becomes proportionally more expensive when dialogue volume is low, while Task's simpler scheduling model is more efficient for sparse workloads.
-	\item \textbf{Python still lags:} \textbf{Python multiprocessing} requires 6.8 seconds, still 3$\times$ slower than Elixir Task and 2.5$\times$ slower than Elixir Actor, though the absolute gap narrows due to reduced computational load.
-	\item \textbf{CPU utilization drops:} Both Elixir implementations show lower CPU usage (354\% and 431\%) compared to all-pairs, reflecting the reduced parallelism available when only 1,200 dialogues occur per iteration (vs.\ 44,850 in all-pairs). Python's CPU usage remains extremely low (23\%), indicating it cannot effectively parallelize even this reduced workload.
-	\item \textbf{Memory efficiency:} Memory consumption decreased across all engines, with Elixir Actor using the least (136 MB), followed by Task (147 MB) and Python (155 MB). The reduced dialogue volume eliminates the memory pressure observed in all-pairs.
-	\item \textbf{Exceptional stability:} All engines show very tight confidence intervals, with the Actor engine exhibiting remarkable precision (CI width of only 7ms), demonstrating consistent performance across trials.
-\end{itemize}
-
-These findings highlight that \textbf{topology matters} for runtime selection. While the Actor engine excels at dense all-pairs interactions where massive concurrency is available, the Task engine becomes more efficient for sparse topologies where coordination overhead dominates. Python remains consistently slower regardless of topology, though the performance gap narrows as computational intensity decreases.
+	\item \textbf{Python still lags:} \textbf{Python multiprocessing} requires 6.9 seconds, still 3$\times$ slower than Elixir Task and 2.6$\times$ slower than Elixir Actor, though the absolute gap narrows due to reduced computational load.
+	\item \textbf{CPU utilization varies by topology:} Both Elixir implementations show lower CPU usage (357\% and 432\%) compared to all-pairs, reflecting the reduced parallelism available when only 1,200 dialogues occur per iteration (vs.\ 44,850 in all-pairs). Notably, Python's CPU usage is substantially higher in this sparse topology (660\%) than in all-pairs (593\%), suggesting different parallelization behavior at varying workload scales.
+	\item \textbf{Memory efficiency:} Memory consumption decreased across all engines, with Elixir Actor using the least (135 MB), followed by Task (149 MB) and Python (155 MB). The reduced dialogue volume eliminates the memory pressure observed in all-pairs.
+	\item \textbf{Stability varies:} The Actor engine exhibits exceptional precision (CI width of only 3ms), while Task and Python show slightly wider but still tight intervals (51ms and 59ms respectively), all demonstrating consistent performance across trials.
+\end{itemize}These findings highlight that \textbf{topology matters} for runtime selection. While the Actor engine excels at dense all-pairs interactions where massive concurrency is available, the Task engine becomes more efficient for sparse topologies where coordination overhead dominates. Python remains consistently slower regardless of topology, though the performance gap narrows as computational intensity decreases.
 
 
 \section{Conclusions}
 
 This work examined the suitability of Elixir as a runtime environment for large-scale simulations of opinion dynamics. Using the extended dialogue model under two distinct interaction topologies --- dense all-pairs and sparse random matching --- we compared three implementations: an actor-based Elixir engine, a task-based Elixir engine, and a Python multiprocessing baseline. The purpose of this evaluation was not to establish a general benchmarking framework, but to support the authors' ongoing research on community opinion dynamics by identifying a runtime environment that balances correctness, reproducibility, and performance.
 
-The experiments demonstrated that Elixir provides clear advantages for highly concurrent workloads, though the optimal implementation varies with topology. For dense all-pairs interactions (4.5 million dialogues), the Actor engine excelled with superior parallelization and throughput. For sparse random matching (120,000 dialogues with $k=8$ peers per agent), the Task engine proved more efficient, as coordination overhead became proportionally more significant than raw dialogue processing. Python multiprocessing consistently lagged behind both Elixir implementations regardless of topology, showing 56--200\% longer runtimes and poor CPU utilization (23--65\% vs.\ 350--730\% for Elixir). The results confirm that the concurrency-first design of the BEAM runtime offers tangible benefits for agent-based simulations that require millions of independent, lightweight interactions to be executed and aggregated deterministically.
+The experiments demonstrated that Elixir provides clear advantages for highly concurrent workloads, though the optimal implementation varies with topology. For dense all-pairs interactions (4.5 million dialogues), the Actor engine excelled with superior parallelization and throughput. For sparse random matching (120,000 dialogues with $k=8$ peers per agent), the Task engine proved more efficient, as coordination overhead became proportionally more significant than raw dialogue processing. Python multiprocessing consistently lagged behind both Elixir implementations regardless of topology, showing 56--200\% longer runtimes and varying CPU utilization patterns (593\% for all-pairs, 660\% for random matching vs.\ 629--732\% for Elixir). The results confirm that the concurrency-first design of the BEAM runtime offers tangible benefits for agent-based simulations that require millions of independent, lightweight interactions to be executed and aggregated deterministically.
 
 At the same time, several limitations must be acknowledged. 
 \begin{enumerate}
