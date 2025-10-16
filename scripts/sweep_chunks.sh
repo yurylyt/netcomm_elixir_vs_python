@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 COMM_SIZE=200
 MIN_CHUNK_SIZE=1
 MAX_CHUNK_SIZE=1024
@@ -12,7 +15,7 @@ run_simulation() {
     local language=$1
     echo "$language"
     for i in $(seq "$MIN_CHUNK_SIZE" "$MAX_CHUNK_SIZE"); do
-        ./run_sim.sh "$language" --agents "$COMM_SIZE" --iterations "$ITERS" --seed "$SEED" --chunk-size "$i" --procs "$NUM_PROCS"
+        "$SCRIPT_DIR/run_sim.sh" "$language" --agents "$COMM_SIZE" --iterations "$ITERS" --seed "$SEED" --chunk-size "$i" --procs "$NUM_PROCS"
     done
 }
 

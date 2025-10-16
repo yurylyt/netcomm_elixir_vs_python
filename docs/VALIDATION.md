@@ -92,21 +92,21 @@ To reproduce validation tests:
 
 ### All-pairs topology (identical results):
 ```bash
-./run_sim.sh elixir -a 15 -i 8 -E base -s 999 -t all -v
-./run_sim.sh elixir -a 15 -i 8 -E proc -s 999 -t all -v
-./run_sim.sh python -a 15 -i 8 -s 999 -p 1 -t all -v
+../scripts/run_sim.sh elixir -a 15 -i 8 -E base -s 999 -t all -v
+../scripts/run_sim.sh elixir -a 15 -i 8 -E proc -s 999 -t all -v
+../scripts/run_sim.sh python -a 15 -i 8 -s 999 -p 1 -t all -v
 ```
 
 ### Random matching topology (different but valid):
 ```bash
-./run_sim.sh elixir -a 10 -i 10 -E base -s 42 -t 8 -v
-./run_sim.sh elixir -a 10 -i 10 -E proc -s 42 -t 8 -v
-./run_sim.sh python -a 10 -i 10 -s 42 -p 1 -t 8 -v
+../scripts/run_sim.sh elixir -a 10 -i 10 -E base -s 42 -t 8 -v
+../scripts/run_sim.sh elixir -a 10 -i 10 -E proc -s 42 -t 8 -v
+../scripts/run_sim.sh python -a 10 -i 10 -s 42 -p 1 -t 8 -v
 ```
 
 ### Performance benchmark:
 ```bash
-./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5 -c 256 -T 8
+../scripts/benchmark_trials_enhanced.sh -a 300 -i 10 -t 5 -c 256 -T 8
 ```
 
 ## Conclusion

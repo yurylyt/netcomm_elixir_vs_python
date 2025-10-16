@@ -49,16 +49,16 @@ stats = run(100, 10, 42, 256, topology=5)
 
 ```bash
 # All-pairs (default)
-./run_sim.sh elixir -a 100 -i 10
-./run_sim.sh python -a 100 -i 10
+../scripts/run_sim.sh elixir -a 100 -i 10
+../scripts/run_sim.sh python -a 100 -i 10
 
 # Explicit all-pairs
-./run_sim.sh elixir -a 100 -i 10 -t all
-./run_sim.sh python -a 100 -i 10 -t all
+../scripts/run_sim.sh elixir -a 100 -i 10 -t all
+../scripts/run_sim.sh python -a 100 -i 10 -t all
 
 # Random matching with 5 interactions per agent
-./run_sim.sh elixir -a 100 -i 10 -t 5
-./run_sim.sh python -a 100 -i 10 -t 5
+../scripts/run_sim.sh elixir -a 100 -i 10 -t 5
+../scripts/run_sim.sh python -a 100 -i 10 -t 5
 
 # Sweep with random matching
 ./sweep_sim.sh elixir 100 200 -i 10 -t 3

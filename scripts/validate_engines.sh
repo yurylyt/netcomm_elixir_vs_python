@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Quick validation script to verify all three engines produce correct results
-# Usage: ./validate_engines.sh
+# Usage: ./scripts/validate_engines.sh
 
 set -euo pipefail
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 echo "╔══════════════════════════════════════════════════════════════════════╗"
 echo "║                Engine Validation Test Suite                          ║"
@@ -35,9 +38,9 @@ info() {
 echo "Test 1: Small all-pairs topology (should be identical)"
 echo "───────────────────────────────────────────────────────"
 
-BASE_OUTPUT=$(./run_sim.sh elixir -a $SMALL_AGENTS -i $ITERS -E base -s $SEED -t all -v 2>&1)
-PROC_OUTPUT=$(./run_sim.sh elixir -a $SMALL_AGENTS -i $ITERS -E proc -s $SEED -t all -v 2>&1)
-PY_OUTPUT=$(./run_sim.sh python -a $SMALL_AGENTS -i $ITERS -s $SEED -p 1 -t all -v 2>&1)
+BASE_OUTPUT=$("$SCRIPT_DIR/run_sim.sh" elixir -a $SMALL_AGENTS -i $ITERS -E base -s $SEED -t all -v 2>&1)
+PROC_OUTPUT=$("$SCRIPT_DIR/run_sim.sh" elixir -a $SMALL_AGENTS -i $ITERS -E proc -s $SEED -t all -v 2>&1)
+PY_OUTPUT=$("$SCRIPT_DIR/run_sim.sh" python -a $SMALL_AGENTS -i $ITERS -s $SEED -p 1 -t all -v 2>&1)
 
 BASE_VOTES=$(echo "$BASE_OUTPUT" | grep "vote_results:" | grep -o '{[^}]*}')
 PROC_VOTES=$(echo "$PROC_OUTPUT" | grep "vote_results:" | grep -o '{[^}]*}')
@@ -73,9 +76,9 @@ echo ""
 echo "Test 2: Large all-pairs topology (performance check)"
 echo "───────────────────────────────────────────────────────"
 
-BASE_TIME=$(./run_sim.sh elixir -a $LARGE_AGENTS -i 5 -E base -s $SEED -t all 2>&1 | tail -1)
-PROC_TIME=$(./run_sim.sh elixir -a $LARGE_AGENTS -i 5 -E proc -s $SEED -t all 2>&1 | tail -1)
-PY_TIME=$(./run_sim.sh python -a $LARGE_AGENTS -i 5 -s $SEED -p 1 -t all 2>&1 | tail -1)
+BASE_TIME=$("$SCRIPT_DIR/run_sim.sh" elixir -a $LARGE_AGENTS -i 5 -E base -s $SEED -t all 2>&1 | tail -1)
+PROC_TIME=$("$SCRIPT_DIR/run_sim.sh" elixir -a $LARGE_AGENTS -i 5 -E proc -s $SEED -t all 2>&1 | tail -1)
+PY_TIME=$("$SCRIPT_DIR/run_sim.sh" python -a $LARGE_AGENTS -i 5 -s $SEED -p 1 -t all 2>&1 | tail -1)
 
 info "Elixir base: ${BASE_TIME}ms"
 info "Elixir proc: ${PROC_TIME}ms"
@@ -93,19 +96,19 @@ echo ""
 echo "Test 3: Random topology (all engines should complete)"
 echo "───────────────────────────────────────────────────────"
 
-if ./run_sim.sh elixir -a 50 -i 5 -E base -s $SEED -t 8 >/dev/null 2>&1; then
+if "$SCRIPT_DIR/run_sim.sh" elixir -a 50 -i 5 -E base -s $SEED -t 8 >/dev/null 2>&1; then
     pass "Elixir base completes with random topology"
 else
     fail "Elixir base fails with random topology"
 fi
 
-if ./run_sim.sh elixir -a 50 -i 5 -E proc -s $SEED -t 8 >/dev/null 2>&1; then
+if "$SCRIPT_DIR/run_sim.sh" elixir -a 50 -i 5 -E proc -s $SEED -t 8 >/dev/null 2>&1; then
     pass "Elixir proc completes with random topology"
 else
     fail "Elixir proc fails with random topology"
 fi
 
-if ./run_sim.sh python -a 50 -i 5 -s $SEED -p 1 -t 8 >/dev/null 2>&1; then
+if "$SCRIPT_DIR/run_sim.sh" python -a 50 -i 5 -s $SEED -p 1 -t 8 >/dev/null 2>&1; then
     pass "Python completes with random topology"
 else
     fail "Python fails with random topology"

@@ -344,7 +344,7 @@ The repeated trials confirm several points:
 \begin{itemize}
 	\item \textbf{Elixir Actor Engine} is consistently the most efficient, completing runs in \textasciitilde{}18.9 seconds on average, with the highest CPU utilization (731.9\%) indicating effective use of all 8 cores.
 	\item \textbf{Elixir Task Engine} averages \textasciitilde{}21.5 seconds, about 14\% slower than Actor but still faster than Python, with lower CPU utilization (629.3\%) suggesting less efficient parallelization.
-	\item \textbf{Python multiprocessing} requires \textasciitilde{}29.5 seconds, 56\% more than Elixir Actor Engine, with CPU utilization (593.0\%) still lower than Elixir implementations but substantially higher than previously observed.
+	\item \textbf{Python multiprocessing} requires \textasciitilde{}29.5 seconds, 56\% more than Elixir Actor Engine, with CPU utilization (593.0\%).
 	\item \textbf{Stability:} All implementations show very small confidence intervals (CI widths under 1\% of median for walltime), indicating that runtimes are stable and reproducible.
 	\item \textbf{Memory usage:} Elixir implementations consume more memory than Python, with Task Engine using the most (291 MB) due to concurrent task overhead, while Actor Engine (226 MB) is more efficient. Python's lower memory footprint (184 MB) reflects sequential processing within workers.
 \end{itemize}These results reinforce the conclusion that Elixir offers clear performance advantages for highly concurrent workloads. Moreover, the stability across trials demonstrates that the observed differences are not due to random noise but reflect genuine runtime characteristics.

@@ -16,11 +16,17 @@ The simulation supports two interaction topologies:
 .
 ├── elixir/              # Elixir Mix project (MiniSim core + both engines)
 ├── python/              # Python port with identical behavior
-├── run_sim.sh           # Single run wrapper script
-├── sweep_sim.sh         # Sweep community sizes from M to N agents
-├── sweep_chunks.sh      # Sweep chunk sizes (parallelism tuning)
-├── sweep_em_all.sh      # Comprehensive sweep across all engines
-└── benchmark_*.sh/py    # Enhanced benchmarking tools (see BENCHMARKING.md)
+├── scripts/             # Benchmarking and simulation scripts
+│   ├── run_sim.sh       # Single run wrapper script
+│   ├── sweep_sim.sh     # Sweep community sizes from M to N agents
+│   ├── sweep_chunks.sh  # Sweep chunk sizes (parallelism tuning)
+│   ├── sweep_em_all.sh  # Comprehensive sweep across all engines
+│   ├── benchmark_*.sh   # Enhanced benchmarking tools
+│   └── benchmark_monitor.py  # Python-based monitoring with metrics
+├── tests/               # Validation and correctness tests
+├── docs/                # Documentation (benchmarking, topology, validation)
+├── benchmark_analysis/  # Benchmark results and statistical analysis
+└── paper/               # Academic paper drafts
 ```
 
 ## Quick Start
@@ -101,12 +107,14 @@ python python/main.py --agents 2000 --iterations 10 --seed 12345 --chunk-size 25
 
 ## Scripts Reference
 
+All scripts are located in the `scripts/` directory.
+
 ### `run_sim.sh` — Single Simulation Run
 
 Wrapper script for running a single simulation and measuring wall time.
 
 ```bash
-./run_sim.sh <language> --agents N --iterations N [OPTIONS]
+./scripts/run_sim.sh <language> --agents N --iterations N [OPTIONS]
 ```
 
 **Options:**
@@ -123,17 +131,17 @@ Wrapper script for running a single simulation and measuring wall time.
 **Examples:**
 ```bash
 # Elixir base engine with all-pairs topology
-./run_sim.sh elixir -a 20000 -i 10 -s 42 -c 256
+./scripts/run_sim.sh elixir -a 20000 -i 10 -s 42 -c 256
 
 # Elixir base engine with random matching (5 interactions per agent)
-./run_sim.sh elixir -a 20000 -i 10 -s 42 -c 256 -t 5
+./scripts/run_sim.sh elixir -a 20000 -i 10 -s 42 -c 256 -t 5
 
 # Elixir proc engine (all-pairs only)
-./run_sim.sh elixir -a 20000 -i 10 -E proc
+./scripts/run_sim.sh elixir -a 20000 -i 10 -E proc
 
 # Python with 4 workers and random matching
-./run_sim.sh python -a 20000 -i 10 -p 4 -t 3
-./run_sim.sh python -a 20000 -i 10 -p 4
+./scripts/run_sim.sh python -a 20000 -i 10 -p 4 -t 3
+./scripts/run_sim.sh python -a 20000 -i 10 -p 4
 ```
 
 **Output:** Prints elapsed milliseconds to stdout
@@ -143,7 +151,7 @@ Wrapper script for running a single simulation and measuring wall time.
 Sweep community sizes from MIN to MAX agents, running one simulation per size.
 
 ```bash
-./sweep_sim.sh <language> <min_agents> <max_agents> --iterations N [OPTIONS]
+./scripts/sweep_sim.sh <language> <min_agents> <max_agents> --iterations N [OPTIONS]
 ```
 
 **Options:**
@@ -156,16 +164,16 @@ Sweep community sizes from MIN to MAX agents, running one simulation per size.
 **Examples:**
 ```bash
 # Elixir base: sweep 100-300 agents, all-pairs
-./sweep_sim.sh elixir 100 300 -i 100 -E base -t all
+./scripts/sweep_sim.sh elixir 100 300 -i 100 -E base -t all
 
 # Elixir base: sweep 100-300 agents, random matching (k=8)
-./sweep_sim.sh elixir 100 300 -i 100 -E base -t 8
+./scripts/sweep_sim.sh elixir 100 300 -i 100 -E base -t 8
 
 # Elixir proc: sweep 100-300 agents (all-pairs only)
-./sweep_sim.sh elixir 100 300 -i 100 -E proc
+./scripts/sweep_sim.sh elixir 100 300 -i 100 -E proc
 
 # Python: sweep 100-300 agents with 8 workers, random matching
-./sweep_sim.sh python 100 300 -i 100 -p 8 -t 8
+./scripts/sweep_sim.sh python 100 300 -i 100 -p 8 -t 8
 ```
 
 **Output:** One line per run containing elapsed milliseconds
@@ -182,7 +190,7 @@ Sweep chunk sizes from 1 to 1024 to find optimal parallelism settings.
 
 **Usage:**
 ```bash
-./sweep_chunks.sh [NUM_PROCS]  # NUM_PROCS for Python (optional, default: 1)
+./scripts/sweep_chunks.sh [NUM_PROCS]  # NUM_PROCS for Python (optional, default: 1)
 ```
 
 **Output:** One line per chunk size containing elapsed milliseconds
@@ -199,7 +207,7 @@ Convenience script that runs community size sweeps for all engines and both topo
 
 **Usage:**
 ```bash
-./sweep_em_all.sh
+./scripts/sweep_em_all.sh
 ```
 
 **Output:** Sweep sections for:
@@ -217,21 +225,21 @@ For comprehensive benchmarking with **walltime**, **memory footprint**, and **CP
 pip install -r python/requirements.txt
 
 # Run multiple trials with full metrics (all-pairs)
-./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5 -T all
+./scripts/benchmark_trials_enhanced.sh -a 300 -i 10 -t 5 -T all
 
 # Run multiple trials with random matching (k=8)
-./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5 -T 8
+./scripts/benchmark_trials_enhanced.sh -a 300 -i 10 -t 5 -T 8
 
 # Compare both topologies automatically
-./benchmark_both_topologies.sh -a 300 -i 100 -t 5 -k 8
+./scripts/benchmark_both_topologies.sh -a 300 -i 100 -t 5 -k 8
 
 # Single run with metrics
-./benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8
+python scripts/benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8
 ```
 
-**See [BENCHMARKING.md](BENCHMARKING.md) for complete documentation.**
+**See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for complete documentation.**
 
-**See [TOPOLOGY_BENCHMARKING.md](TOPOLOGY_BENCHMARKING.md) for topology comparison workflows.**
+**See [docs/TOPOLOGY_BENCHMARKING.md](docs/TOPOLOGY_BENCHMARKING.md) for topology comparison workflows.**
 
 ### Fair Comparison Checklist
 - ✅ Use identical parameters (agents, iterations, seed) across languages
@@ -253,6 +261,8 @@ The repository now includes enhanced benchmarking tools:
 
 - **`benchmark_monitor.py`** - Python-based monitoring with `psutil` for accurate metrics
 - **`benchmark_trials_enhanced.sh`** - Multi-trial runner with statistical analysis
+
+All tools are located in the `scripts/` directory.
 
 These tools measure:
 - ⏱️ **Walltime** (milliseconds)
@@ -280,7 +290,7 @@ elixir-base          Walltime (ms)       1234.5       1230.0         45.2
 Run the comprehensive validation test suite to verify all engines produce correct results:
 
 ```bash
-./validate_engines.sh
+./scripts/validate_engines.sh
 ```
 
 This validates:
@@ -288,7 +298,7 @@ This validates:
 - ✅ Random matching topology works correctly on all engines
 - ✅ Performance is comparable between Elixir base and proc engines
 
-**See [VALIDATION.md](VALIDATION.md) for detailed validation results and methodology.**
+**See [docs/VALIDATION.md](docs/VALIDATION.md) for detailed validation results and methodology.**
 
 ### Reproducibility
 
@@ -300,13 +310,13 @@ Both implementations use the same **64-bit Linear Congruential Generator (LCG)**
 **Verification Example (all-pairs topology):**
 ```bash
 # Elixir base
-./run_sim.sh elixir -a 100 -i 5 -E base -s 42 -t all -v
+./scripts/run_sim.sh elixir -a 100 -i 5 -E base -s 42 -t all -v
 
 # Elixir proc
-./run_sim.sh elixir -a 100 -i 5 -E proc -s 42 -t all -v
+./scripts/run_sim.sh elixir -a 100 -i 5 -E proc -s 42 -t all -v
 
 # Python
-./run_sim.sh python -a 100 -i 5 -s 42 -p 1 -t all -v
+./scripts/run_sim.sh python -a 100 -i 5 -s 42 -p 1 -t all -v
 ```
 
 All three should produce **identical** `vote_results` and `average_preferences`.

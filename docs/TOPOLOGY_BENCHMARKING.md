@@ -8,12 +8,12 @@ This guide provides quick examples for benchmarking different interaction topolo
 
 ```bash
 # All-pairs topology (exhaustive O(n²))
-./run_sim.sh elixir -a 200 -i 100 -t all
-./run_sim.sh python -a 200 -i 100 -t all -p 8
+../scripts/run_sim.sh elixir -a 200 -i 100 -t all
+../scripts/run_sim.sh python -a 200 -i 100 -t all -p 8
 
 # Random matching topology (k=8, approximately O(n×k))
-./run_sim.sh elixir -a 200 -i 100 -t 8
-./run_sim.sh python -a 200 -i 100 -t 8 -p 8
+../scripts/run_sim.sh elixir -a 200 -i 100 -t 8
+../scripts/run_sim.sh python -a 200 -i 100 -t 8 -p 8
 ```
 
 ### 2. Sweep - Multiple Community Sizes
@@ -32,10 +32,10 @@ This guide provides quick examples for benchmarking different interaction topolo
 
 ```bash
 # Benchmark all-pairs with 5 trials
-./benchmark_trials_enhanced.sh -a 300 -i 100 -t 5 -T all -o results_all_pairs.csv
+../scripts/benchmark_trials_enhanced.sh -a 300 -i 100 -t 5 -T all -o results_all_pairs.csv
 
 # Benchmark random-8 with 5 trials
-./benchmark_trials_enhanced.sh -a 300 -i 100 -t 5 -T 8 -o results_random_k8.csv
+../scripts/benchmark_trials_enhanced.sh -a 300 -i 100 -t 5 -T 8 -o results_random_k8.csv
 
 # Comprehensive comparison (both topologies)
 ./benchmark_both_topologies.sh -a 300 -i 100 -t 5 -k 8
@@ -111,13 +111,13 @@ Guidelines for selecting the k parameter:
 
 ```bash
 # 1. Quick test with small community
-./run_sim.sh elixir -a 50 -i 10 -t 8
+../scripts/run_sim.sh elixir -a 50 -i 10 -t 8
 
 # 2. Sweep to find scaling behavior
 ./sweep_sim.sh elixir 100 500 -i 50 -t 8
 
 # 3. Full benchmark with statistics
-./benchmark_trials_enhanced.sh -a 300 -i 100 -t 10 -T 8
+../scripts/benchmark_trials_enhanced.sh -a 300 -i 100 -t 10 -T 8
 
 # 4. Compare both topologies
 ./benchmark_both_topologies.sh -a 300 -i 100 -t 5 -k 8
@@ -145,7 +145,7 @@ To benchmark a range of k values:
 ```bash
 for k in 3 5 8 10 15 20; do
   echo "Benchmarking k=$k"
-  ./benchmark_trials_enhanced.sh -a 300 -i 100 -t 3 -T $k -o "results_k${k}.csv"
+  ../scripts/benchmark_trials_enhanced.sh -a 300 -i 100 -t 3 -T $k -o "results_k${k}.csv"
 done
 
 # Combine results

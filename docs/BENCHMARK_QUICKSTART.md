@@ -24,7 +24,7 @@ pip install -r python/requirements.txt
 ./demo_benchmark.sh
 
 # 3. Run comprehensive benchmarks
-./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5
+../scripts/benchmark_trials_enhanced.sh -a 300 -i 10 -t 5
 ```
 
 ## Metrics Measured
@@ -41,16 +41,16 @@ pip install -r python/requirements.txt
 
 ```bash
 # Elixir base engine
-./benchmark_monitor.py elixir -a 100 -i 10 -E base
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E base
 
 # Elixir proc engine
-./benchmark_monitor.py elixir -a 100 -i 10 -E proc
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E proc
 
 # Python single-process
-./benchmark_monitor.py python -a 100 -i 10 -p 1
+../scripts/benchmark_monitor.py python -a 100 -i 10 -p 1
 
 # Python multi-process (8 workers)
-./benchmark_monitor.py python -a 100 -i 10 -p 8
+../scripts/benchmark_monitor.py python -a 100 -i 10 -p 8
 ```
 
 **CSV Output:**
@@ -61,7 +61,7 @@ walltime_ms,max_memory_kb,avg_cpu_percent
 
 **JSON Output:**
 ```bash
-./benchmark_monitor.py elixir -a 100 -i 10 -E base -o json
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E base -o json
 # {"walltime_ms": 1234, "max_memory_kb": 45678, "avg_cpu_percent": 125.50}
 ```
 
@@ -69,10 +69,10 @@ walltime_ms,max_memory_kb,avg_cpu_percent
 
 ```bash
 # Default: 300 agents, 10 iterations, 5 trials
-./benchmark_trials_enhanced.sh
+../scripts/benchmark_trials_enhanced.sh
 
 # Custom configuration
-./benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -o results.csv
+../scripts/benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -o results.csv
 ```
 
 **Output:**
@@ -97,12 +97,12 @@ elixir-base          Walltime (ms)       1234.5       1230.0         45.2
 
 ### 1. Quick Performance Check
 ```bash
-./benchmark_monitor.py elixir -a 100 -i 10 -E base
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E base
 ```
 
 ### 2. Statistical Analysis (Publication)
 ```bash
-./benchmark_trials_enhanced.sh -a 1000 -i 50 -t 10 -o paper_results.csv
+../scripts/benchmark_trials_enhanced.sh -a 1000 -i 50 -t 10 -o paper_results.csv
 ```
 
 ### 3. Comparing Configurations
@@ -110,7 +110,7 @@ elixir-base          Walltime (ms)       1234.5       1230.0         45.2
 # Test different chunk sizes
 for chunk in 64 128 256 512; do
   echo "Chunk size: $chunk"
-  ./benchmark_monitor.py elixir -a 500 -i 20 -c $chunk -E base
+  ../scripts/benchmark_monitor.py elixir -a 500 -i 20 -c $chunk -E base
 done
 ```
 
@@ -119,7 +119,7 @@ done
 # Find memory usage pattern across community sizes
 for agents in 100 200 500 1000 2000; do
   echo -n "$agents,"
-  ./benchmark_monitor.py elixir -a $agents -i 10 -E base -o csv
+  ../scripts/benchmark_monitor.py elixir -a $agents -i 10 -E base -o csv
 done > memory_profile.csv
 ```
 
@@ -182,7 +182,7 @@ pip install -r python/requirements.txt
 The Python monitor is more reliable than the shell version. If you encounter issues:
 ```bash
 # Use Python monitor (recommended)
-./benchmark_monitor.py elixir -a 100 -i 10
+../scripts/benchmark_monitor.py elixir -a 100 -i 10
 
 # Fallback to shell monitor
 ./benchmark.sh elixir -a 100 -i 10

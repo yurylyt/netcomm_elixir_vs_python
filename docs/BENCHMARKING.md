@@ -18,24 +18,24 @@ If the monitor fails to capture metrics:
 pip install psutil
 
 # Try with verbose output to see any errors
-./benchmark_monitor.py elixir -a 100 -i 10 -v
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -v
 ```
 
 ### Single Benchmark Run
 
 ```bash
 # Using Python monitor for accurate metrics
-./benchmark_monitor.py elixir -a 100 -i 10 -E base
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E base
 ```
 
 ### Multiple Trials with Statistics
 
 ```bash
 # Run 5 trials of each configuration (Elixir base, Elixir proc, Python single, Python multi)
-./benchmark_trials_enhanced.sh -a 300 -i 10 -t 5
+../scripts/benchmark_trials_enhanced.sh -a 300 -i 10 -t 5
 
 # Custom configuration
-./benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -o results.csv
+../scripts/benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -o results.csv
 ```
 
 ## Tool Reference
@@ -46,7 +46,7 @@ pip install psutil
 
 **Usage:**
 ```bash
-./benchmark_monitor.py <language> [OPTIONS]
+../scripts/benchmark_monitor.py <language> [OPTIONS]
 ```
 
 **Options:**
@@ -63,22 +63,22 @@ pip install psutil
 **Examples:**
 ```bash
 # Elixir base engine with all-pairs
-./benchmark_monitor.py elixir -a 100 -i 10 -E base -t all
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E base -t all
 
 # Elixir base engine with random matching (k=8)
-./benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8
 
 # Elixir proc engine (all-pairs only)
-./benchmark_monitor.py elixir -a 100 -i 10 -E proc
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E proc
 
 # Python single-process with random matching
-./benchmark_monitor.py python -a 100 -i 10 -p 1 -t 8
+../scripts/benchmark_monitor.py python -a 100 -i 10 -p 1 -t 8
 
 # Python multi-process (8 workers) with all-pairs
-./benchmark_monitor.py python -a 100 -i 10 -p 8 -t all
+../scripts/benchmark_monitor.py python -a 100 -i 10 -p 8 -t all
 
 # JSON output format
-./benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8 -o json
+../scripts/benchmark_monitor.py elixir -a 100 -i 10 -E base -t 8 -o json
 ```
 
 **Output Format (CSV):**
@@ -98,7 +98,7 @@ Runs multiple trials for each configuration and outputs statistical summary.
 
 **Usage:**
 ```bash
-./benchmark_trials_enhanced.sh [OPTIONS]
+../scripts/benchmark_trials_enhanced.sh [OPTIONS]
 ```
 
 **Options:**
@@ -113,10 +113,10 @@ Runs multiple trials for each configuration and outputs statistical summary.
 **Examples:**
 ```bash
 # Run 10 trials with 500 agents, 20 iterations, all-pairs topology
-./benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -T all -o results_all_pairs.csv
+../scripts/benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -T all -o results_all_pairs.csv
 
 # Run 10 trials with random matching topology (k=8)
-./benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -T 8 -o results_random_k8.csv
+../scripts/benchmark_trials_enhanced.sh -a 500 -i 20 -t 10 -p 8 -T 8 -o results_random_k8.csv
 ```
 
 **Output:**
@@ -300,7 +300,7 @@ ggplot(df, aes(x=interaction(language, engine), y=walltime_ms)) +
 sudo cpupower frequency-set --governor performance
 
 # Set CPU affinity (Linux)
-taskset -c 0-7 ./benchmark_monitor.py elixir -a 100 -i 10
+taskset -c 0-7 ../scripts/benchmark_monitor.py elixir -a 100 -i 10
 
 # Monitor system load
 htop  # Keep an eye on system resources
@@ -379,10 +379,10 @@ Here's a complete workflow for benchmarking:
 pip install -r python/requirements.txt
 
 # 2. Quick test to ensure everything works
-./benchmark_monitor.py elixir -a 10 -i 5 -E base -v
+../scripts/benchmark_monitor.py elixir -a 10 -i 5 -E base -v
 
 # 3. Run comprehensive benchmarks
-./benchmark_trials_enhanced.sh -a 300 -i 100 -t 10 -o results.csv
+../scripts/benchmark_trials_enhanced.sh -a 300 -i 100 -t 10 -o results.csv
 
 # 4. Analyze results
 python3 <<EOF
